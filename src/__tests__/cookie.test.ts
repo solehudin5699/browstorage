@@ -1,206 +1,236 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { CookieStorage } from '../storage/cookie'
+import { CookieStorage, CookieKey } from '../storage/cookie'
 
-// document.cookie is mocked by happy-dom
-
-describe('CookieStorage', () => {
+describe('CookieKey', () => {
   beforeEach(() => {
-    // Hapus semua cookie
     document.cookie.split('; ').forEach((c) => {
       const name = c.split('=')[0]
       document.cookie = `${name}=; max-age=0`
     })
   })
 
-  it('sets and gets a string value', () => {
-    const storage = new CookieStorage<string>('test-cookie', {
+  function key<T = string>(name: string): CookieKey<T> {
+    return new CookieKey<T>(name, {
       encrypt: false,
       encryptionKey: '',
+      ttlMs: undefined,
+      domain: undefined,
       path: '/',
+      secure: false,
+      sameSite: 'lax',
+      httpOnly: false,
     })
-    storage.set('hello')
-    expect(storage.get()).toBe('hello')
+  }
+
+  it('sets and gets a string value', () => {
+    const k = key('test-cookie')
+    k.set('hello')
+    expect(k.get()).toBe('hello')
   })
 
   it('sets and gets an object value', () => {
-    const storage = new CookieStorage<{ foo: string }>('obj-cookie', {
-      encrypt: false,
-      encryptionKey: '',
-      path: '/',
-    })
-    storage.set({ foo: 'bar' })
-    expect(storage.get()).toEqual({ foo: 'bar' })
+    const k = key<{ foo: string }>('obj-cookie')
+    k.set({ foo: 'bar' })
+    expect(k.get()).toEqual({ foo: 'bar' })
   })
 
   it('sets and gets a number', () => {
-    const storage = new CookieStorage<number>('num-cookie', {
-      encrypt: false,
-      encryptionKey: '',
-      path: '/',
-    })
-    storage.set(42)
-    expect(storage.get()).toBe(42)
+    const k = key<number>('num-cookie')
+    k.set(42)
+    expect(k.get()).toBe(42)
   })
 
   it('returns undefined for non-existent cookie', () => {
-    const storage = new CookieStorage<string>('missing', {
-      encrypt: false,
-      encryptionKey: '',
-      path: '/',
-    })
-    expect(storage.get()).toBeUndefined()
+    expect(key('missing').get()).toBeUndefined()
   })
 
   it('removes a cookie', () => {
-    const storage = new CookieStorage<string>('remove-cookie', {
-      encrypt: false,
-      encryptionKey: '',
-      path: '/',
-    })
-    storage.set('value')
-    expect(storage.get()).toBe('value')
-    storage.remove()
-    expect(storage.get()).toBeUndefined()
+    const k = key('remove-cookie')
+    k.set('value')
+    expect(k.get()).toBe('value')
+    k.remove()
+    expect(k.get()).toBeUndefined()
   })
 
   it('encrypts and decrypts value', () => {
-    const storage = new CookieStorage<string>('enc-cookie', {
+    const k = new CookieKey<string>('enc-cookie', {
       encrypt: true,
       encryptionKey: 'secret',
+      ttlMs: undefined,
+      domain: undefined,
       path: '/',
+      secure: false,
+      sameSite: 'lax',
+      httpOnly: false,
     })
-    storage.set('hidden message')
-    expect(storage.get()).toBe('hidden message')
+    k.set('hidden message')
+    expect(k.get()).toBe('hidden message')
   })
 
   it('removes encrypted value', () => {
-    const storage = new CookieStorage<string>('enc-remove', {
+    const k = new CookieKey<string>('enc-remove', {
       encrypt: true,
       encryptionKey: 'secret',
+      ttlMs: undefined,
+      domain: undefined,
       path: '/',
+      secure: false,
+      sameSite: 'lax',
+      httpOnly: false,
     })
-    storage.set('value')
-    expect(storage.get()).toBe('value')
-    storage.remove()
-    expect(storage.get()).toBeUndefined()
+    k.set('value')
+    expect(k.get()).toBe('value')
+    k.remove()
+    expect(k.get()).toBeUndefined()
   })
 
   it('returns undefined for wrong encryption key', () => {
-    const storage1 = new CookieStorage<string>('wrong-key', {
+    const k1 = new CookieKey<string>('wrong-key', {
       encrypt: true,
       encryptionKey: 'correct-key',
+      ttlMs: undefined,
+      domain: undefined,
       path: '/',
+      secure: false,
+      sameSite: 'lax',
+      httpOnly: false,
     })
-    storage1.set('secret data')
+    k1.set('secret data')
 
-    const storage2 = new CookieStorage<string>('wrong-key', {
+    const k2 = new CookieKey<string>('wrong-key', {
       encrypt: true,
       encryptionKey: 'wrong-key',
+      ttlMs: undefined,
+      domain: undefined,
       path: '/',
+      secure: false,
+      sameSite: 'lax',
+      httpOnly: false,
     })
-    expect(storage2.get()).toBeUndefined()
+    expect(k2.get()).toBeUndefined()
   })
 
   it('sets cookie with custom options', () => {
-    const storage = new CookieStorage<string>('opt-cookie', {
+    const k = new CookieKey<string>('opt-cookie', {
       encrypt: false,
       encryptionKey: '',
+      ttlMs: undefined,
+      domain: undefined,
       path: '/',
-      sameSite: 'strict',
       secure: true,
+      sameSite: 'strict',
+      httpOnly: false,
     })
-    storage.set('value')
-    expect(storage.get()).toBe('value')
+    k.set('value')
+    expect(k.get()).toBe('value')
   })
 
   it('overrides options per set call', () => {
-    const storage = new CookieStorage<string>('override-cookie', {
-      encrypt: false,
-      encryptionKey: '',
-      path: '/',
-    })
-    storage.set('value', { path: '/' })
-    expect(storage.get()).toBe('value')
+    const k = key('override-cookie')
+    k.set('value', { path: '/' })
+    expect(k.get()).toBe('value')
   })
 
   it('handles ttl expiry via set options', () => {
-    const storage = new CookieStorage<string>('ttl-cookie', {
-      encrypt: false,
-      encryptionKey: '',
-      path: '/',
-    })
-    storage.set('value', { ttl: -1 })
-    expect(storage.get()).toBeUndefined()
+    const k = key('ttl-cookie')
+    k.set('value', { ttl: -1 })
+    expect(k.get()).toBeUndefined()
+  })
+
+  it('has() returns true for existing cookie', () => {
+    const k = key('has-cookie')
+    k.set('value')
+    expect(k.has()).toBe(true)
+  })
+
+  it('has() returns false for missing cookie', () => {
+    expect(key('missing').has()).toBe(false)
+  })
+
+  it('has() returns false after remove', () => {
+    const k = key('remove-has')
+    k.set('value')
+    k.remove()
+    expect(k.has()).toBe(false)
+  })
+
+  it('warns when cookie exceeds size limit', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const k = key('big-cookie')
+    k.set('x'.repeat(5000))
+    expect(warn).toHaveBeenCalled()
+    expect(k.get()).toBeUndefined()
+    warn.mockRestore()
+  })
+
+  it('stores cookie within size limit', () => {
+    const k = key('small-cookie')
+    k.set('small-value')
+    expect(k.get()).toBe('small-value')
   })
 
   it('SSR guard returns undefined', () => {
     const doc = globalThis.document
     ;(globalThis as any).document = undefined
 
-    const storage = new CookieStorage<string>('ssr-cookie', {
-      encrypt: false,
-      encryptionKey: '',
-    })
-    expect(storage.get()).toBeUndefined()
-    expect(() => storage.set('value')).not.toThrow()
-    expect(() => storage.remove()).not.toThrow()
+    const k = key('ssr-cookie')
+    expect(k.get()).toBeUndefined()
+    expect(() => k.set('value')).not.toThrow()
+    expect(() => k.remove()).not.toThrow()
 
     globalThis.document = doc
   })
 
-  it('warns when cookie exceeds size limit', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const storage = new CookieStorage<string>('big-cookie', {
-      encrypt: false,
-      encryptionKey: '',
-      path: '/',
-    })
-    storage.set('x'.repeat(5000))
-    expect(warn).toHaveBeenCalled()
-    expect(storage.get()).toBeUndefined()
-    warn.mockRestore()
+  it('SSR guard has() returns false', () => {
+    const doc = globalThis.document
+    ;(globalThis as any).document = undefined
+    expect(key('ssr-has').has()).toBe(false)
+    globalThis.document = doc
   })
 
-  it('stores cookie within size limit', () => {
-    const storage = new CookieStorage<string>('small-cookie', {
-      encrypt: false,
-      encryptionKey: '',
-      path: '/',
+})
+
+describe('CookieStorage (factory)', () => {
+  beforeEach(() => {
+    document.cookie.split('; ').forEach((c) => {
+      const name = c.split('=')[0]
+      document.cookie = `${name}=; max-age=0`
     })
-    storage.set('small-value')
-    expect(storage.get()).toBe('small-value')
   })
 
-  it('clears all cookies', () => {
-    const a = new CookieStorage<string>('cookie-a', {
-      encrypt: false,
-      encryptionKey: '',
-      path: '/',
-    })
-    const b = new CookieStorage<string>('cookie-b', {
-      encrypt: false,
-      encryptionKey: '',
-      path: '/',
-    })
+  it('creates a per-key binding via .key()', () => {
+    const cookie = new CookieStorage()
+    const k = cookie.key<string>('token', { path: '/' })
+    k.set('value')
+    expect(k.get()).toBe('value')
+  })
+
+  it('clear() removes all cookies', () => {
+    const cookie = new CookieStorage()
+    const a = cookie.key<string>('cookie-a', { path: '/' })
+    const b = cookie.key<string>('cookie-b', { path: '/' })
     a.set('val-a')
     b.set('val-b')
     expect(a.get()).toBe('val-a')
     expect(b.get()).toBe('val-b')
-    a.clear()
+    cookie.clear()
     expect(a.get()).toBeUndefined()
     expect(b.get()).toBeUndefined()
   })
 
-  it('SSR guard does not throw on clear', () => {
+  it('size() returns cookie string length', () => {
+    const cookie = new CookieStorage()
+    const k = cookie.key<string>('size-cookie', { path: '/' })
+    k.set('hello')
+    expect(cookie.size()).toBeGreaterThan(0)
+  })
+
+  it('SSR guard on clear() does not throw', () => {
     const doc = globalThis.document
     ;(globalThis as any).document = undefined
-
-    const storage = new CookieStorage<string>('ssr-clear', {
-      encrypt: false,
-      encryptionKey: '',
-    })
-    expect(() => storage.clear()).not.toThrow()
-
+    const cookie = new CookieStorage()
+    expect(() => cookie.clear()).not.toThrow()
+    expect(cookie.size()).toBe(0)
     globalThis.document = doc
   })
 })

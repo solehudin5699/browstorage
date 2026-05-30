@@ -3,25 +3,34 @@ type Unit = 'ms' | 's' | 'm' | 'h' | 'd' | 'w'
 /** TTL format: number (ms), string unit, or absolute Date. */
 type TTL = number | `${number}${Unit}` | Date
 
-/** Global configuration for WebShelf. */
-interface WebShelfConfig {
-  /** Enable encryption for all storage instances. */
+/** Factory config for local/session storage (includes encryptionKey). */
+interface StorageConfig {
+  /** Enable encryption. */
   encrypt?: boolean
-  /** Global encryption key. */
+  /** Encryption key (required if encrypt is true). */
   encryptionKey?: string
-  /** Default TTL for all storage instances. */
+  /** Default TTL. */
   ttl?: TTL
 }
 
-/** Per-storage options (local/session). */
+/** Per-key / per-set options for local/session — NO encryptionKey. */
 interface StorageOptions {
-  /** Override encryption for this storage. */
+  /** Override encryption. */
   encrypt?: boolean
-  /** Override TTL for this storage. */
+  /** Override TTL. */
   ttl?: TTL
 }
 
-/** Per-storage cookie options. */
+/** Factory config for cookies (includes encryptionKey + cookie options). */
+interface CookieConfig extends StorageConfig {
+  domain?: string
+  path?: string
+  secure?: boolean
+  sameSite?: 'strict' | 'lax' | 'none'
+  httpOnly?: boolean
+}
+
+/** Per-key / per-set options for cookies — NO encryptionKey. */
 interface CookieOptions extends StorageOptions {
   domain?: string
   path?: string
@@ -45,7 +54,7 @@ interface SetCookieOptions extends SetStorageOptions {
   httpOnly?: boolean
 }
 
-/** Internal resolved options (global + per-storage merged). */
+/** Internal resolved options (factory + per-key merged). */
 interface ResolvedStorageOptions {
   encrypt: boolean
   encryptionKey: string
@@ -64,8 +73,9 @@ interface ResolvedCookieOptions extends ResolvedStorageOptions {
 export type {
   Unit,
   TTL,
-  WebShelfConfig,
+  StorageConfig,
   StorageOptions,
+  CookieConfig,
   CookieOptions,
   SetStorageOptions,
   SetCookieOptions,

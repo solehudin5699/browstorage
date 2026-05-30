@@ -1,6 +1,11 @@
 import { encrypt, decrypt } from '../encryption'
 import { parseTTL } from '../ttl'
-import type { ResolvedCookieOptions, SetCookieOptions } from '../types'
+import type {
+  CookieConfig,
+  CookieOptions,
+  SetCookieOptions,
+  ResolvedCookieOptions,
+} from '../types'
 
 const MAX_COOKIE_SIZE = 4096
 
@@ -72,10 +77,85 @@ function removeCookie(
   setCookie(name, '', { ...options, ttlMs: 0 })
 }
 
+// ===== Helpers =====
+
+function resolveConfig(config?: CookieConfig): ResolvedCookieOptions {
+  return {
+    encrypt: config?.encrypt ?? false,
+    encryptionKey: config?.encryptionKey ?? '',
+    ttlMs: config?.ttl !== undefined ? parseTTL(config.ttl) : undefined,
+    domain: config?.domain,
+    path: config?.path ?? '/',
+    secure: config?.secure ?? false,
+    sameSite: config?.sameSite ?? 'lax',
+    httpOnly: config?.httpOnly ?? false,
+  }
+}
+
+function mergeOptions(
+  base: ResolvedCookieOptions,
+  override?: CookieOptions,
+): ResolvedCookieOptions {
+  return {
+    encrypt: override?.encrypt ?? base.encrypt,
+    encryptionKey: base.encryptionKey,
+    ttlMs: override?.ttl !== undefined ? parseTTL(override.ttl) : base.ttlMs,
+    domain: override?.domain ?? base.domain,
+    path: override?.path ?? base.path,
+    secure: override?.secure ?? base.secure,
+    sameSite: override?.sameSite ?? base.sameSite,
+    httpOnly: override?.httpOnly ?? base.httpOnly,
+  }
+}
+
+// ===== Factory =====
+
 /**
- * Cookie (`document.cookie`)-backed storage instance with TTL and encryption support.
+ * Factory for creating cookie-backed per-key bindings.
  */
-export class CookieStorage<T> {
+export class CookieStorage {
+  #config: ResolvedCookieOptions
+
+  constructor(config?: CookieConfig) {
+    this.#config = resolveConfig(config)
+  }
+
+  /**
+   * Create a per-key binding.
+   *
+   * @param name - Cookie name.
+   * @param override - Per-key options (overrides factory config).
+   */
+  key<T = string>(name: string, override?: CookieOptions): CookieKey<T> {
+    return new CookieKey<T>(name, mergeOptions(this.#config, override))
+  }
+
+  /**
+   * Clear all cookies accessible from the current path.
+   */
+  clear(): void {
+    if (typeof document === 'undefined') return
+    const cookies = parseCookieString(document.cookie)
+    for (const name of Object.keys(cookies)) {
+      setCookie(name, '', { path: '/', ttlMs: 0 })
+    }
+  }
+
+  /**
+   * Total length of the cookie string in bytes.
+   */
+  size(): number {
+    if (typeof document === 'undefined') return 0
+    return document.cookie.length
+  }
+}
+
+// ===== Per-Key Binding =====
+
+/**
+ * A cookie key-value binding with TTL and encryption support.
+ */
+export class CookieKey<T> {
   #name: string
   #encrypt: boolean
   #encryptionKey: string
@@ -156,13 +236,10 @@ export class CookieStorage<T> {
   }
 
   /**
-   * Clear all cookies accessible from the current path.
+   * Check if the cookie exists.
    */
-  clear(): void {
-    if (typeof document === 'undefined') return
-    const cookies = parseCookieString(document.cookie)
-    for (const name of Object.keys(cookies)) {
-      setCookie(name, '', { path: '/', ttlMs: 0 })
-    }
+  has(): boolean {
+    return getCookie(this.#name) !== undefined
   }
+
 }

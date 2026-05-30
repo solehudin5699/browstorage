@@ -1,11 +1,80 @@
 import { encrypt, decrypt } from '../encryption'
 import { parseTTL } from '../ttl'
-import type { ResolvedStorageOptions, SetStorageOptions } from '../types'
+import type { StorageConfig, StorageOptions, SetStorageOptions, ResolvedStorageOptions } from '../types'
+
+// ===== Helpers =====
+
+function resolveConfig(config?: StorageConfig): ResolvedStorageOptions {
+  return {
+    encrypt: config?.encrypt ?? false,
+    encryptionKey: config?.encryptionKey ?? '',
+    ttlMs: config?.ttl !== undefined ? parseTTL(config.ttl) : undefined,
+  }
+}
+
+function mergeOptions(
+  base: ResolvedStorageOptions,
+  override?: StorageOptions,
+): ResolvedStorageOptions {
+  return {
+    encrypt: override?.encrypt ?? base.encrypt,
+    encryptionKey: base.encryptionKey,
+    ttlMs: override?.ttl !== undefined ? parseTTL(override.ttl) : base.ttlMs,
+  }
+}
+
+// ===== Factory =====
 
 /**
- * `sessionStorage`-backed storage instance with TTL and encryption support.
+ * Factory for creating `sessionStorage`-backed per-key bindings.
  */
-export class SessionStorage<T> {
+export class SessionStorage {
+  #config: ResolvedStorageOptions
+
+  constructor(config?: StorageConfig) {
+    this.#config = resolveConfig(config)
+  }
+
+  /**
+   * Create a per-key binding.
+   *
+   * @param name - Storage key.
+   * @param override - Per-key options (overrides factory config).
+   */
+  key<T = string>(name: string, override?: StorageOptions): SessionKey<T> {
+    return new SessionKey<T>(name, mergeOptions(this.#config, override))
+  }
+
+  /**
+   * Clear all sessionStorage data.
+   */
+  clear(): void {
+    if (typeof window === 'undefined') return
+    sessionStorage.clear()
+  }
+
+  /**
+   * Estimated total size of all sessionStorage data in bytes.
+   */
+  size(): number {
+    if (typeof window === 'undefined') return 0
+    let total = 0
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i)
+      if (key === null) continue
+      const value = sessionStorage.getItem(key)
+      total += key.length + (value?.length ?? 0)
+    }
+    return total
+  }
+}
+
+// ===== Per-Key Binding =====
+
+/**
+ * A `sessionStorage` key-value binding with TTL and encryption support.
+ */
+export class SessionKey<T> {
   #name: string
   #encrypt: boolean
   #encryptionKey: string
@@ -102,10 +171,21 @@ export class SessionStorage<T> {
   }
 
   /**
-   * Clear all sessionStorage data.
+   * Check if the key exists and is not expired.
    */
-  clear(): void {
-    if (typeof window === 'undefined') return
-    sessionStorage.clear()
+  has(): boolean {
+    if (typeof window === 'undefined') return false
+    const cached = sessionStorage.getItem(this.#name)
+    if (!cached) return false
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(cached)
+    } catch {
+      return false
+    }
+    const exp = parsed.exp as number | undefined
+    if (exp !== undefined && Date.now() > exp) return false
+    return true
   }
+
 }
