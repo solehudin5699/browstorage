@@ -3,14 +3,25 @@
   "version": "0.0.0",
   "description": "A simple web shelf for managing your web resources",
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "files": [
     "dist",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --minify --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
+    "build": "tsc",
     "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublishOnly": "npm run build",
     "prepare": "husky",
     "release": "release-it"
@@ -27,19 +38,20 @@
   },
   "homepage": "https://github.com/solehudin5699/webshelf#readme",
   "devDependencies": {
-    "@clack/prompts": "^1.4.0",
     "@commitlint/cli": "^20.5.3",
     "@commitlint/config-conventional": "^20.5.3",
     "@release-it/conventional-changelog": "^11.0.0",
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "^22.10.7",
-    "axios": "^1.7.9",
-    "commander": "^11.1.0",
-    "esbuild": "^0.28.0",
+    "happy-dom": "^20.9.0",
     "husky": "^9.1.7",
     "release-it": "^20.0.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "zod": "^3.24.1"
+    "vitest": "^4.1.7"
+  },
+  "dependencies": {
+    "crypto-js": "^4.2.0"
   },
   "engines": {
     "node": ">=18.0.0"
