@@ -100,4 +100,12 @@ export class SessionStorage<T> {
     if (typeof window === 'undefined') return
     sessionStorage.removeItem(this.#name)
   }
+
+  /**
+   * Clear all sessionStorage data.
+   */
+  clear(): void {
+    if (typeof window === 'undefined') return
+    sessionStorage.clear()
+  }
 }

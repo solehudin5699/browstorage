@@ -132,6 +132,37 @@ describe('LocalStorage', () => {
     localStorage.setItem = setItem
   })
 
+  it('clears all localStorage data', () => {
+    const a = new LocalStorage<string>('a', {
+      encrypt: false,
+      encryptionKey: '',
+    })
+    const b = new LocalStorage<string>('b', {
+      encrypt: false,
+      encryptionKey: '',
+    })
+    a.set('val-a')
+    b.set('val-b')
+    expect(a.get()).toBe('val-a')
+    expect(b.get()).toBe('val-b')
+    a.clear()
+    expect(a.get()).toBeUndefined()
+    expect(b.get()).toBeUndefined()
+  })
+
+  it('SSR guard does not throw on clear', () => {
+    const win = globalThis.window
+    ;(globalThis as any).window = undefined
+
+    const storage = new LocalStorage<string>('ssr-clear', {
+      encrypt: false,
+      encryptionKey: '',
+    })
+    expect(() => storage.clear()).not.toThrow()
+
+    globalThis.window = win
+  })
+
   it('SSR guard returns undefined', () => {
     const win = globalThis.window
     ;(globalThis as any).window = undefined

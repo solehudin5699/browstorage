@@ -100,4 +100,12 @@ export class LocalStorage<T> {
     if (typeof window === 'undefined') return
     localStorage.removeItem(this.#name)
   }
+
+  /**
+   * Clear all localStorage data.
+   */
+  clear(): void {
+    if (typeof window === 'undefined') return
+    localStorage.clear()
+  }
 }

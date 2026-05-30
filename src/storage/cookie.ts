@@ -2,6 +2,8 @@ import { encrypt, decrypt } from '../encryption'
 import { parseTTL } from '../ttl'
 import type { ResolvedCookieOptions, SetCookieOptions } from '../types'
 
+const MAX_COOKIE_SIZE = 4096
+
 function encodeCookieValue(name: string, value: string): string {
   return `${encodeURIComponent(name)}=${encodeURIComponent(value)}`
 }
@@ -43,6 +45,14 @@ function setCookie(
   if (options.secure) cookie += `; secure`
   if (options.sameSite) cookie += `; samesite=${options.sameSite}`
   if (options.httpOnly) cookie += `; httponly`
+
+  if (cookie.length > MAX_COOKIE_SIZE) {
+    console.warn(
+      `[webshelf] Cookie "${name}" exceeds size limit ` +
+      `(${cookie.length} > ${MAX_COOKIE_SIZE} bytes)`,
+    )
+    return
+  }
 
   document.cookie = cookie
 }
@@ -143,5 +153,16 @@ export class CookieStorage<T> {
       domain: options?.domain ?? this.#defaults.domain,
       path: options?.path ?? this.#defaults.path,
     })
+  }
+
+  /**
+   * Clear all cookies accessible from the current path.
+   */
+  clear(): void {
+    if (typeof document === 'undefined') return
+    const cookies = parseCookieString(document.cookie)
+    for (const name of Object.keys(cookies)) {
+      setCookie(name, '', { path: '/', ttlMs: 0 })
+    }
   }
 }

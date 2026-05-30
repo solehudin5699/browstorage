@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { CookieStorage } from '../storage/cookie'
 
 // document.cookie is mocked by happy-dom
@@ -144,6 +144,62 @@ describe('CookieStorage', () => {
     expect(storage.get()).toBeUndefined()
     expect(() => storage.set('value')).not.toThrow()
     expect(() => storage.remove()).not.toThrow()
+
+    globalThis.document = doc
+  })
+
+  it('warns when cookie exceeds size limit', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const storage = new CookieStorage<string>('big-cookie', {
+      encrypt: false,
+      encryptionKey: '',
+      path: '/',
+    })
+    storage.set('x'.repeat(5000))
+    expect(warn).toHaveBeenCalled()
+    expect(storage.get()).toBeUndefined()
+    warn.mockRestore()
+  })
+
+  it('stores cookie within size limit', () => {
+    const storage = new CookieStorage<string>('small-cookie', {
+      encrypt: false,
+      encryptionKey: '',
+      path: '/',
+    })
+    storage.set('small-value')
+    expect(storage.get()).toBe('small-value')
+  })
+
+  it('clears all cookies', () => {
+    const a = new CookieStorage<string>('cookie-a', {
+      encrypt: false,
+      encryptionKey: '',
+      path: '/',
+    })
+    const b = new CookieStorage<string>('cookie-b', {
+      encrypt: false,
+      encryptionKey: '',
+      path: '/',
+    })
+    a.set('val-a')
+    b.set('val-b')
+    expect(a.get()).toBe('val-a')
+    expect(b.get()).toBe('val-b')
+    a.clear()
+    expect(a.get()).toBeUndefined()
+    expect(b.get()).toBeUndefined()
+  })
+
+  it('SSR guard does not throw on clear', () => {
+    const doc = globalThis.document
+    ;(globalThis as any).document = undefined
+
+    const storage = new CookieStorage<string>('ssr-clear', {
+      encrypt: false,
+      encryptionKey: '',
+    })
+    expect(() => storage.clear()).not.toThrow()
 
     globalThis.document = doc
   })

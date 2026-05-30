@@ -75,6 +75,37 @@ describe('SessionStorage', () => {
     expect(sessionStorage.getItem('corrupt')).toBeNull()
   })
 
+  it('clears all sessionStorage data', () => {
+    const a = new SessionStorage<string>('a', {
+      encrypt: false,
+      encryptionKey: '',
+    })
+    const b = new SessionStorage<string>('b', {
+      encrypt: false,
+      encryptionKey: '',
+    })
+    a.set('val-a')
+    b.set('val-b')
+    expect(a.get()).toBe('val-a')
+    expect(b.get()).toBe('val-b')
+    a.clear()
+    expect(a.get()).toBeUndefined()
+    expect(b.get()).toBeUndefined()
+  })
+
+  it('SSR guard does not throw on clear', () => {
+    const win = globalThis.window
+    ;(globalThis as any).window = undefined
+
+    const storage = new SessionStorage<string>('ssr-clear', {
+      encrypt: false,
+      encryptionKey: '',
+    })
+    expect(() => storage.clear()).not.toThrow()
+
+    globalThis.window = win
+  })
+
   it('SSR guard returns undefined', () => {
     const win = globalThis.window
     ;(globalThis as any).window = undefined
