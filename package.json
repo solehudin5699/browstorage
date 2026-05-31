@@ -1,7 +1,7 @@
 {
-  "name": "webshelf",
+  "name": "browstorage",
   "version": "0.0.0",
-  "description": "A simple web shelf for managing your web resources",
+  "description": "Browser storage library with TTL & encryption for localStorage, sessionStorage, cookies, and IndexedDB",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -31,18 +31,19 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/solehudin5699/webshelf.git"
+    "url": "git+https://github.com/solehudin5699/browstorage.git"
   },
   "bugs": {
-    "url": "https://github.com/solehudin5699/webshelf/issues"
+    "url": "https://github.com/solehudin5699/browstorage/issues"
   },
-  "homepage": "https://github.com/solehudin5699/webshelf#readme",
+  "homepage": "https://github.com/solehudin5699/browstorage#readme",
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
     "@commitlint/config-conventional": "^20.5.3",
     "@release-it/conventional-changelog": "^11.0.0",
     "@types/crypto-js": "^4.2.2",
     "@types/node": "^22.10.7",
+    "fake-indexeddb": "^6.0.0",
     "happy-dom": "^20.9.0",
     "husky": "^9.1.7",
     "release-it": "^20.0.1",

@@ -111,7 +111,7 @@ export class SessionKey<T> {
       sessionStorage.setItem(this.#name, JSON.stringify(payload))
     } catch (e) {
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-        console.warn(`[webshelf] Quota exceeded for key "${this.#name}"`)
+        console.warn(`[browstorage] Quota exceeded for key "${this.#name}"`)
       } else {
         throw e
       }

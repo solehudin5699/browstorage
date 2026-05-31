@@ -53,7 +53,7 @@ function setCookie(
 
   if (cookie.length > MAX_COOKIE_SIZE) {
     console.warn(
-      `[webshelf] Cookie "${name}" exceeds size limit ` +
+      `[browstorage] Cookie "${name}" exceeds size limit ` +
       `(${cookie.length} > ${MAX_COOKIE_SIZE} bytes)`,
     )
     return

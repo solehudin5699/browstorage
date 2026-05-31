@@ -14,7 +14,7 @@ export function parseTTL(ttl: TTL | undefined): number | undefined {
 
   const match = ttl.match(/^(-?\d+)(ms|s|m|h|d|w)$/)
   if (!match) {
-    console.warn(`[webshelf] Invalid TTL format: "${ttl}"`)
+    console.warn(`[browstorage] Invalid TTL format: "${ttl}"`)
     return undefined
   }
 

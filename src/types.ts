@@ -70,6 +70,54 @@ interface ResolvedCookieOptions extends ResolvedStorageOptions {
   httpOnly?: boolean
 }
 
+/** Defines a secondary index on an object store. */
+interface IndexOptions {
+  name: string
+  keyPath: string | string[]
+  unique?: boolean
+  multiEntry?: boolean
+}
+
+/** Defines an object store schema (plain, structured clone, supports indexes). */
+interface ObjectStoreSchema {
+  name: string
+  keyPath: string | string[]
+  autoIncrement?: boolean
+  indexes?: IndexOptions[]
+}
+
+/** Defines a secure store schema (encrypted key-value). */
+interface SecureStoreSchema {
+  name: string
+  encryptionKey: string
+  ttl?: TTL
+}
+
+/** Per-key options for SecureStore. */
+interface SecureKeyOptions {
+  ttl?: TTL
+}
+
+/** Factory config for IndexedDB. */
+interface IndexedDBOptions<
+  S extends readonly ObjectStoreSchema[] = readonly ObjectStoreSchema[],
+  K extends readonly SecureStoreSchema[] = readonly SecureStoreSchema[],
+> {
+  dbName?: string
+  stores?: S
+  secureStores?: K
+}
+
+/** Internal resolved IndexedDB options. */
+interface ResolvedDBOptions<
+  S extends readonly ObjectStoreSchema[] = readonly ObjectStoreSchema[],
+  K extends readonly SecureStoreSchema[] = readonly SecureStoreSchema[],
+> {
+  dbName: string
+  stores: S
+  secureStores: K
+}
+
 export type {
   Unit,
   TTL,
@@ -79,6 +127,12 @@ export type {
   CookieOptions,
   SetStorageOptions,
   SetCookieOptions,
+  IndexOptions,
+  ObjectStoreSchema,
+  SecureStoreSchema,
+  SecureKeyOptions,
+  IndexedDBOptions,
   ResolvedStorageOptions,
   ResolvedCookieOptions,
+  ResolvedDBOptions,
 }
