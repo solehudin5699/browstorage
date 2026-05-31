@@ -408,6 +408,97 @@ describe('SecureStore', () => {
     expect(await cache.key('x').get()).toBe('value')
   })
 
+  it('overrides ttl at set() level over schema/key TTL', async () => {
+    const db = new IndexedDB({
+      dbName: 'test-db',
+      secureStores: [{ name: 'cache', encryptionKey: 'key', ttl: '1h' }],
+    })
+    const cache = db.secureStore('cache')
+    const k = cache.key('x', { ttl: '30m' })
+    await k.set('value', { ttl: -1 })
+    expect(await k.get()).toBeUndefined()
+    expect(await k.has()).toBe(false)
+  })
+
+  it('overrides ttl at set() level even without schema/key TTL', async () => {
+    const db = new IndexedDB({
+      dbName: 'test-db',
+      secureStores: [{ name: 'cache', encryptionKey: 'key' }],
+    })
+    const cache = db.secureStore('cache')
+    const k = cache.key('x')
+    await k.set('value', { ttl: -1 })
+    expect(await k.get()).toBeUndefined()
+    expect(await k.has()).toBe(false)
+  })
+
+  it('stores correct $exp when ttl overridden at set() level (user scenario)', async () => {
+    const db = new IndexedDB({
+      dbName: 'test-db',
+      secureStores: [{ name: 'sessions', encryptionKey: 'secret', ttl: '24h' }],
+    })
+    const sessions = db.secureStore('sessions')
+    const k = sessions.key<{ name: string }>('user-session', { ttl: '1d' })
+    await k.set({ name: 'Ahmad' }, { ttl: '15m' })
+
+    const raw: any = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('test-db')
+      req.onsuccess = () => {
+        const r = req.result
+        const tx = r.transaction('sessions', 'readonly')
+        const getReq = tx.objectStore('sessions').get('user-session')
+        getReq.onsuccess = () => {
+          resolve(getReq.result)
+          r.close()
+        }
+        getReq.onerror = () => reject(getReq.error)
+      }
+      req.onerror = () => reject(req.error)
+    })
+
+    expect(raw).toBeDefined()
+    expect(raw.key).toBe('user-session')
+    const now = Date.now()
+    expect(raw.$exp).toBeGreaterThan(now + 800000)  // ~13.3min
+    expect(raw.$exp).toBeLessThan(now + 1000000)    // ~16.6min
+  })
+
+  it('stores correct $exp with short string TTL at set() level', async () => {
+    const db = new IndexedDB({
+      dbName: 'test-db',
+      secureStores: [{ name: 'cache', encryptionKey: 'key', ttl: '24h' }],
+    })
+    const cache = db.secureStore('cache')
+    const k = cache.key('x', { ttl: '1d' })
+    const before = Date.now()
+    await k.set('value', { ttl: '10ms' })
+    const after = Date.now()
+
+    const raw: any = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('test-db')
+      req.onsuccess = () => {
+        const r = req.result
+        const tx = r.transaction('cache', 'readonly')
+        const getReq = tx.objectStore('cache').get('x')
+        getReq.onsuccess = () => {
+          resolve(getReq.result)
+          r.close()
+        }
+        getReq.onerror = () => reject(getReq.error)
+      }
+      req.onerror = () => reject(req.error)
+    })
+
+    expect(raw).toBeDefined()
+    expect(raw.key).toBe('x')
+    expect(raw.$exp).toBeGreaterThanOrEqual(before + 10)
+    expect(raw.$exp).toBeLessThanOrEqual(after + 10)
+
+    await new Promise(r => setTimeout(r, 20))
+    expect(await k.get()).toBeUndefined()
+    expect(await k.has()).toBe(false)
+  })
+
   it('throws for unknown secure store', () => {
     const db = createDB()
     expect(() => db.secureStore('ghost' as any)).toThrow('Secure store not found')

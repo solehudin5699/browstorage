@@ -19,9 +19,10 @@ export type {
   CookieKeyOptions,
   SetStorageOptions,
   SetCookieOptions,
-  IndexedDBOptions,
+  IndexedDBConfig,
   ObjectStoreSchema,
   SecureStoreSchema,
   SecureKeyOptions,
+  SecureSetOptions,
   IndexOptions,
 } from './types'

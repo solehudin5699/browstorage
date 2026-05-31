@@ -98,8 +98,13 @@ interface SecureKeyOptions {
   ttl?: TTL
 }
 
+/** Per-set options for SecureKey. */
+interface SecureSetOptions {
+  ttl?: TTL
+}
+
 /** Factory config for IndexedDB. */
-interface IndexedDBOptions<
+interface IndexedDBConfig<
   S extends readonly ObjectStoreSchema[] = readonly ObjectStoreSchema[],
   K extends readonly SecureStoreSchema[] = readonly SecureStoreSchema[],
 > {
@@ -131,7 +136,8 @@ export type {
   ObjectStoreSchema,
   SecureStoreSchema,
   SecureKeyOptions,
-  IndexedDBOptions,
+  SecureSetOptions,
+  IndexedDBConfig,
   ResolvedStorageOptions,
   ResolvedCookieOptions,
   ResolvedDBOptions,

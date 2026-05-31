@@ -47,7 +47,7 @@ const users = db.objectStore<User>('users')
 await users.add({ name: 'Alice' })
 const all = await users.getAll()
 
-const auth = db.secureStore<Session>('sessions').key('alice')
+const auth = db.secureStore('sessions').key<Session>('alice')
 await auth.set({ role: 'admin' })
 
 // --- Factory methods ---
@@ -93,12 +93,11 @@ token.set('sensitive-data')
 token.get()     // 'sensitive-data' (auto-decrypted)
 ```
 
-Encryption can be overridden per-key or per-set:
+Encryption can be overridden per-key:
 
 ```ts
 const local = new LocalStorage({ encrypt: true, encryptionKey: 'global-key' })
 const token = local.key<string>('token', { encrypt: false })   // no encryption
-token.set('value', { encrypt: true })                           // override: encrypt
 ```
 
 ## API Reference
@@ -229,8 +228,8 @@ const byCat = products.index('byCat')
 const fruits = await byCat.getAll('fruit')
 
 // SecureStore — encrypted, TTL
-const sessions = db.secureStore<Session>('sessions')
-const alice = sessions.key('alice')
+const sessions = db.secureStore('sessions')
+const alice = sessions.key<Session>('alice')
 await alice.set({ role: 'admin', lastLogin: new Date() })
 await alice.get()    // { role: 'admin', lastLogin: Date }
 await alice.has()    // true

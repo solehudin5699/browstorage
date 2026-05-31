@@ -1,9 +1,10 @@
 import { encrypt, decrypt } from '../encryption'
 import type {
-  IndexedDBOptions,
+  IndexedDBConfig,
   ObjectStoreSchema,
   SecureStoreSchema,
   SecureKeyOptions,
+  SecureSetOptions,
   ResolvedDBOptions,
 } from '../types'
 import { parseTTL } from '../ttl'
@@ -226,7 +227,7 @@ function resolveConfig<
   const S extends readonly ObjectStoreSchema[] = readonly ObjectStoreSchema[],
   const K extends readonly SecureStoreSchema[] = readonly SecureStoreSchema[],
 >(
-  config?: IndexedDBOptions<S, K>,
+  config?: IndexedDBConfig<S, K>,
 ): ResolvedDBOptions<S, K> {
   return {
     dbName: config?.dbName ?? 'browstorage',
@@ -243,7 +244,7 @@ export class IndexedDB<
 > {
   #config: ResolvedDBOptions<S, K>
 
-  constructor(config?: IndexedDBOptions<S, K>) {
+  constructor(config?: IndexedDBConfig<S, K>) {
     this.#config = resolveConfig(config)
   }
 
@@ -256,13 +257,13 @@ export class IndexedDB<
     return new ObjectStore<T>(name, schema, this.#config.dbName, allSchemas)
   }
 
-  secureStore<T>(name: K[number]['name']): SecureStore<T> {
+  secureStore(name: K[number]['name']): SecureStore {
     const schema = this.#config.secureStores.find(s => s.name === name)
     if (!schema) {
       throw new Error(`[browstorage] Secure store not found: "${name}"`)
     }
     const allSchemas = mergeSchemas(this.#config.stores, this.#config.secureStores)
-    return new SecureStore<T>(name, schema, this.#config.dbName, allSchemas)
+    return new SecureStore(name, schema, this.#config.dbName, allSchemas)
   }
 
   async clear(): Promise<void> {
@@ -457,7 +458,7 @@ export class Index<T> {
 
 // ===== Secure Store =====
 
-export class SecureStore<T> {
+export class SecureStore {
   #name: string
   #schema: SecureStoreSchema
   #dbName: string
@@ -475,7 +476,7 @@ export class SecureStore<T> {
     this.#allSchemas = allSchemas
   }
 
-  key(key: IDBValidKey, options?: SecureKeyOptions): SecureKey<T> {
+  key<T>(key: IDBValidKey, options?: SecureKeyOptions): SecureKey<T> {
     let ttlMs: number | undefined
     if (options?.ttl !== undefined) {
       ttlMs = parseTTL(options.ttl)
@@ -518,10 +519,11 @@ export class SecureKey<T> {
     this.#ttlMs = ttlMs
   }
 
-  async set(value: T): Promise<void> {
+  async set(value: T, options?: SecureSetOptions): Promise<void> {
     if (typeof indexedDB === 'undefined') return
 
-    const record = prepareSecureValue(value, this.#encryptionKey, this.#ttlMs)
+    const ttlMs = options?.ttl !== undefined ? parseTTL(options.ttl) : this.#ttlMs
+    const record = prepareSecureValue(value, this.#encryptionKey, ttlMs)
     record.key = this.#key
 
     await withStore(
