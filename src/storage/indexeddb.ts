@@ -13,34 +13,31 @@ import { parseTTL } from '../ttl'
 
 const connections = new Map<string, Promise<IDBDatabase>>()
 
-async function ensureSchema(
-  db: IDBDatabase,
-  dbName: string,
-  schema: readonly ObjectStoreSchema[],
-): Promise<void> {
-  const stored = await getStoredMeta(db)
-  if (!stored) return
-
-  if (schemasEqual(stored.schema, schema)) return
-
-  db.close()
-  connections.delete(dbName)
-
-  const newVersion = (stored.version ?? 0) + 1
-  const promise = openDB(dbName, schema, newVersion)
-  connections.set(dbName, promise)
-  await promise
-}
-
-function getStoredMeta(
+async function readMeta(
   db: IDBDatabase,
 ): Promise<{ version: number; schema: ObjectStoreSchema[] } | null> {
-  if (!db.objectStoreNames.contains('_meta')) return Promise.resolve(null)
+  if (!db.objectStoreNames.contains('_meta')) return null
   return new Promise((resolve, reject) => {
     const tx = db.transaction('_meta', 'readonly')
     const req = tx.objectStore('_meta').get('schema')
-    req.onsuccess = () => resolve(req.result?.value ?? null)
+    req.onsuccess = () => resolve(req.result ?? null)
     req.onerror = () => reject(req.error)
+  })
+}
+
+async function writeMeta(
+  db: IDBDatabase,
+  schema: readonly ObjectStoreSchema[],
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('_meta', 'readwrite')
+    tx.objectStore('_meta').put({
+      key: 'schema',
+      schema: schema as ObjectStoreSchema[],
+      version: db.version,
+    })
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
   })
 }
 
@@ -67,6 +64,26 @@ function schemasEqual(
   return keysA.every((k, i) => k === keysB[i])
 }
 
+async function indexesMismatch(
+  db: IDBDatabase,
+  schema: readonly ObjectStoreSchema[],
+): Promise<boolean> {
+  for (const s of schema) {
+    if (!db.objectStoreNames.contains(s.name)) continue
+    const tx = db.transaction(s.name)
+    const store = tx.objectStore(s.name)
+    const actual = Array.from(store.indexNames).sort()
+    const expected = (s.indexes ?? []).map(i => i.name).sort()
+    if (
+      actual.length !== expected.length
+      || actual.some((n, i) => n !== expected[i])
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
 function openDB(
   dbName: string,
   schema: readonly ObjectStoreSchema[],
@@ -85,7 +102,27 @@ function openDB(
       }
 
       for (const s of schema) {
-        if (db.objectStoreNames.contains(s.name)) continue
+        if (db.objectStoreNames.contains(s.name)) {
+          const store = req.transaction!.objectStore(s.name)
+
+          for (const idxName of Array.from(store.indexNames)) {
+            if (!s.indexes?.some(i => i.name === idxName)) {
+              store.deleteIndex(idxName)
+            }
+          }
+
+          if (s.indexes) {
+            for (const idx of s.indexes) {
+              if (!store.indexNames.contains(idx.name)) {
+                store.createIndex(idx.name, idx.keyPath, {
+                  unique: idx.unique ?? false,
+                  multiEntry: idx.multiEntry ?? false,
+                })
+              }
+            }
+          }
+          continue
+        }
 
         const store = db.createObjectStore(s.name, {
           keyPath: s.keyPath,
@@ -132,8 +169,36 @@ async function getConnection(
 
   const promise = (async () => {
     const db = await openDB(dbName, schema)
-    await ensureSchema(db, dbName, schema)
-    return db
+    const stored = await readMeta(db)
+
+    if (stored === null) {
+      if (db.objectStoreNames.contains('_meta')) {
+        if (await indexesMismatch(db, schema)) {
+          const newVersion = db.version + 1
+          db.close()
+          connections.delete(dbName)
+          const upgradedPromise = openDB(dbName, schema, newVersion)
+          connections.set(dbName, upgradedPromise)
+          const upgradedDb = await upgradedPromise
+          await writeMeta(upgradedDb, schema)
+          return upgradedDb
+        }
+      }
+      await writeMeta(db, schema)
+      return db
+    }
+
+    if (schemasEqual(stored.schema, schema)) return db
+
+    const newVersion = stored.version + 1
+    db.close()
+    connections.delete(dbName)
+
+    const upgradedPromise = openDB(dbName, schema, newVersion)
+    connections.set(dbName, upgradedPromise)
+    const upgradedDb = await upgradedPromise
+    await writeMeta(upgradedDb, schema)
+    return upgradedDb
   })()
 
   connections.set(dbName, promise)
@@ -296,6 +361,16 @@ export class IndexedDB<
       total += count
     }
     return total
+  }
+
+  async close(): Promise<void> {
+    const allSchemas = mergeSchemas(this.#config.stores, this.#config.secureStores)
+    const promise = connections.get(this.#config.dbName)
+    if (!promise) return
+
+    const db = await promise
+    db.close()
+    connections.delete(this.#config.dbName)
   }
 }
 

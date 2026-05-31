@@ -302,6 +302,402 @@ describe('SSR guard', () => {
   })
 })
 
+// ===== Migration =====
+
+describe('Migration', () => {
+  beforeEach(async () => {
+    await deleteDB('mig-test')
+  })
+
+  it('adds index to existing store via migration', async () => {
+    const db1 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{ name: 'users', keyPath: 'id' }],
+    })
+    const users1 = db1.objectStore<User>('users')
+    await users1.add({ id: 1, name: 'Alice', age: 30 })
+    await users1.add({ id: 2, name: 'Bob', age: 25 })
+    await db1.close()
+
+    const db2 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{
+        name: 'users', keyPath: 'id',
+        indexes: [{ name: 'byName', keyPath: 'name' }],
+      }],
+    })
+    const users2 = db2.objectStore<User>('users')
+
+    const found = await users2.index('byName').get('Bob')
+    expect(found).toEqual({ id: 2, name: 'Bob', age: 25 })
+    expect(await users2.get(1)).toEqual({ id: 1, name: 'Alice', age: 30 })
+    await db2.close()
+  })
+
+  it('adds new store via migration', async () => {
+    const db1 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{ name: 'users', keyPath: 'id' }],
+    })
+    await db1.objectStore('users').add({ id: 1, name: 'Alice', age: 30 })
+    await db1.close()
+
+    const db2 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [
+        { name: 'users', keyPath: 'id' },
+        { name: 'products', keyPath: 'sku' },
+      ],
+    })
+    await db2.objectStore('products').add({
+      sku: 'p1', name: 'Widget', category: 'tools', price: 10,
+    })
+
+    expect(await db2.objectStore('users').count()).toBe(1)
+    expect(await db2.objectStore('products').count()).toBe(1)
+    await db2.close()
+  })
+
+  it('data persists when schema unchanged', async () => {
+    const db1 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{ name: 'users', keyPath: 'id' }],
+    })
+    await db1.objectStore('users').add({ id: 1, name: 'Alice', age: 30 })
+    await db1.close()
+
+    const db2 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{ name: 'users', keyPath: 'id' }],
+    })
+    expect(await db2.objectStore('users').get(1)).toEqual({
+      id: 1, name: 'Alice', age: 30,
+    })
+    await db2.close()
+  })
+
+  it('meta version increments on schema change', async () => {
+    const db1 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{ name: 'items', keyPath: 'id' }],
+    })
+    await db1.objectStore('items').add({ id: 1 })
+    await db1.close()
+
+    const db2 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{
+        name: 'items', keyPath: 'id',
+        indexes: [{ name: 'byVal', keyPath: 'value' }],
+      }],
+    })
+    await db2.objectStore('items').count()
+    await db2.close()
+
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('mig-test')
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    const meta = await new Promise<any>((resolve, reject) => {
+      const tx = db.transaction('_meta', 'readonly')
+      const req = tx.objectStore('_meta').get('schema')
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    db.close()
+    expect(meta.version).toBe(2)
+    expect(meta.schema).toHaveLength(1)
+    expect(meta.schema[0].indexes).toEqual([{ name: 'byVal', keyPath: 'value' }])
+  })
+
+  it('supports multiple sequential migrations', async () => {
+    const db1 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{ name: 'doc', keyPath: 'id' }],
+    })
+    await db1.objectStore('doc').add({ id: 1, title: 'First' })
+    await db1.close()
+
+    const db2 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{
+        name: 'doc', keyPath: 'id',
+        indexes: [{ name: 'byTitle', keyPath: 'title' }],
+      }],
+    })
+    await db2.objectStore('doc').add({ id: 2, title: 'Second' })
+    await db2.close()
+
+    const db3 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{
+        name: 'doc', keyPath: 'id',
+        indexes: [
+          { name: 'byTitle', keyPath: 'title' },
+          { name: 'byId', keyPath: 'id' },
+        ],
+      }],
+    })
+    const docs = db3.objectStore('doc')
+    expect(await docs.index('byTitle').get('First')).toEqual({
+      id: 1, title: 'First',
+    })
+    expect(await docs.index('byId').get(2)).toEqual({
+      id: 2, title: 'Second',
+    })
+    await db3.close()
+  })
+
+  it('removes index from existing store via migration', async () => {
+    const db1 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{
+        name: 'users', keyPath: 'id',
+        indexes: [{ name: 'byName', keyPath: 'name' }],
+      }],
+    })
+    await db1.objectStore('users').add({ id: 1, name: 'Alice' })
+    await db1.close()
+
+    const db2 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{ name: 'users', keyPath: 'id' }],
+    })
+    await expect(db2.objectStore('users').count()).resolves.toBe(1)
+    expect(await db2.objectStore('users').get(1)).toEqual({ id: 1, name: 'Alice' })
+    await db2.close()
+  })
+
+  it('adds and removes indexes in same migration', async () => {
+    const db1 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{
+        name: 'docs', keyPath: 'id',
+        indexes: [
+          { name: 'byTitle', keyPath: 'title' },
+          { name: 'byAuthor', keyPath: 'author' },
+        ],
+      }],
+    })
+    await db1.objectStore('docs').add({ id: 1, title: 'A', author: 'X' })
+    await db1.objectStore('docs').add({ id: 2, title: 'B', author: 'Y' })
+    await db1.close()
+
+    const db2 = new IndexedDB({
+      dbName: 'mig-test',
+      stores: [{
+        name: 'docs', keyPath: 'id',
+        indexes: [
+          { name: 'byAuthor', keyPath: 'author' },
+          { name: 'byId', keyPath: 'id' },
+        ],
+      }],
+    })
+    const docs = db2.objectStore('docs')
+    expect(await docs.index('byAuthor').get('X')).toEqual({ id: 1, title: 'A', author: 'X' })
+    expect(await docs.index('byId').get(2)).toEqual({ id: 2, title: 'B', author: 'Y' })
+    await expect(docs.index('byTitle').get('A')).rejects.toThrow()
+    await db2.close()
+  })
+
+  it('migrates index removal when _meta lacks schema record (old code compat)', async () => {
+    await deleteDB('mig-test-old')
+
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open('mig-test-old', 1)
+      req.onupgradeneeded = () => {
+        const db = req.result
+        const store = db.createObjectStore('users', { keyPath: 'id' })
+        store.createIndex('byName', 'name')
+        store.createIndex('byRole', 'role')
+        store.createIndex('byEmail', 'email')
+        db.createObjectStore('_meta', { keyPath: 'key' })
+      }
+      req.onsuccess = () => {
+        req.result.close()
+        resolve()
+      }
+      req.onerror = () => reject(req.error)
+    })
+
+    const db = new IndexedDB({
+      dbName: 'mig-test-old',
+      stores: [{
+        name: 'users', keyPath: 'id',
+        indexes: [
+          { name: 'byName', keyPath: 'name' },
+          { name: 'byRole', keyPath: 'role' },
+        ],
+      }],
+    })
+
+    const users = db.objectStore('users')
+    await users.add({ id: 1, name: 'Alice', role: 'admin', email: 'alice@x.com' })
+
+    await expect(users.index('byEmail').get('alice@x.com')).rejects.toThrow()
+    expect(await users.index('byName').get('Alice')).toEqual({
+      id: 1, name: 'Alice', role: 'admin', email: 'alice@x.com',
+    })
+    expect(await users.index('byRole').get('admin')).toEqual({
+      id: 1, name: 'Alice', role: 'admin', email: 'alice@x.com',
+    })
+
+    await db.close()
+    await deleteDB('mig-test-old')
+  })
+
+  it('removes all indexes (writeMeta path) — verified via raw indexNames', async () => {
+    await deleteDB('mig-test-idx')
+
+    const db1 = new IndexedDB({
+      dbName: 'mig-test-idx',
+      stores: [{
+        name: 'users', keyPath: 'id',
+        indexes: [
+          { name: 'byName', keyPath: 'name' },
+          { name: 'byRole', keyPath: 'role' },
+          { name: 'byEmail', keyPath: 'email' },
+        ],
+      }],
+    })
+    await db1.objectStore('users').add({ id: 1, name: 'A' })
+    await db1.close()
+
+    const db2 = new IndexedDB({
+      dbName: 'mig-test-idx',
+      stores: [{ name: 'users', keyPath: 'id' }],
+    })
+    await db2.objectStore('users').get(1)
+    await db2.close()
+
+    const raw = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('mig-test-idx')
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    const idxNames = Array.from(raw.transaction('users').objectStore('users').indexNames)
+    raw.close()
+    await deleteDB('mig-test-idx')
+    expect(idxNames).toEqual([])
+  })
+
+  it('removes partial indexes (writeMeta path) — verified via raw indexNames', async () => {
+    await deleteDB('mig-test-idx')
+
+    const db1 = new IndexedDB({
+      dbName: 'mig-test-idx',
+      stores: [{
+        name: 'users', keyPath: 'id',
+        indexes: [
+          { name: 'byName', keyPath: 'name' },
+          { name: 'byRole', keyPath: 'role' },
+          { name: 'byEmail', keyPath: 'email' },
+        ],
+      }],
+    })
+    await db1.objectStore('users').add({ id: 1, name: 'A' })
+    await db1.close()
+
+    const db2 = new IndexedDB({
+      dbName: 'mig-test-idx',
+      stores: [{
+        name: 'users', keyPath: 'id',
+        indexes: [
+          { name: 'byName', keyPath: 'name' },
+          { name: 'byEmail', keyPath: 'email' },
+        ],
+      }],
+    })
+    await db2.objectStore('users').get(1)
+    await db2.close()
+
+    const raw = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('mig-test-idx')
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    const idxNames = Array.from(raw.transaction('users').objectStore('users').indexNames).sort()
+    raw.close()
+    await deleteDB('mig-test-idx')
+    expect(idxNames).toEqual(['byEmail', 'byName'])
+  })
+
+  it('removes all indexes (first-time / old code path) — verified via raw indexNames', async () => {
+    await deleteDB('mig-test-old-idx')
+
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open('mig-test-old-idx', 1)
+      req.onupgradeneeded = () => {
+        const db = req.result
+        const store = db.createObjectStore('users', { keyPath: 'id' })
+        store.createIndex('byName', 'name')
+        store.createIndex('byRole', 'role')
+        store.createIndex('byEmail', 'email')
+        db.createObjectStore('_meta', { keyPath: 'key' })
+      }
+      req.onsuccess = () => { req.result.close(); resolve() }
+      req.onerror = () => reject(req.error)
+    })
+
+    const db = new IndexedDB({
+      dbName: 'mig-test-old-idx',
+      stores: [{ name: 'users', keyPath: 'id' }],
+    })
+    await db.objectStore('users').add({ id: 1, name: 'A' })
+    await db.close()
+
+    const raw = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('mig-test-old-idx')
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    const idxNames = Array.from(raw.transaction('users').objectStore('users').indexNames)
+    raw.close()
+    await deleteDB('mig-test-old-idx')
+    expect(idxNames).toEqual([])
+  })
+
+  it('user scenario: autoIncrement + secureStores + 0 indexes — verified via raw indexNames', async () => {
+    await deleteDB('mig-test-user')
+
+    const db1 = new IndexedDB({
+      dbName: 'mig-test-user',
+      stores: [{
+        name: 'users', keyPath: 'id', autoIncrement: true,
+        indexes: [
+          { name: 'name', keyPath: 'name' },
+          { name: 'role_idx', keyPath: 'role' },
+          { name: 'address_idx', keyPath: 'address' },
+        ],
+      }],
+      secureStores: [{ name: 'sessions', encryptionKey: 'secret', ttl: '24h' }],
+    })
+    await db1.objectStore('users').add({ name: 'A' } as any)
+    await db1.close()
+
+    const db2 = new IndexedDB({
+      dbName: 'mig-test-user',
+      stores: [{
+        name: 'users', keyPath: 'id', autoIncrement: true,
+      }],
+      secureStores: [{ name: 'sessions', encryptionKey: 'secret', ttl: '24h' }],
+    })
+    await db2.objectStore('users').add({ name: 'B' } as any)
+    await db2.close()
+
+    const raw = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('mig-test-user')
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    const idxNames = Array.from(raw.transaction('users').objectStore('users').indexNames)
+    raw.close()
+    await deleteDB('mig-test-user')
+    expect(idxNames).toEqual([])
+  })
+})
+
 // ===== SecureStore / SecureKey =====
 
 describe('SecureStore', () => {
