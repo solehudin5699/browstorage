@@ -2,7 +2,7 @@ import { encrypt, decrypt } from '../encryption'
 import { parseTTL } from '../ttl'
 import type {
   CookieConfig,
-  CookieOptions,
+  CookieKeyOptions,
   SetCookieOptions,
   ResolvedCookieOptions,
 } from '../types'
@@ -94,7 +94,7 @@ function resolveConfig(config?: CookieConfig): ResolvedCookieOptions {
 
 function mergeOptions(
   base: ResolvedCookieOptions,
-  override?: CookieOptions,
+  override?: CookieKeyOptions,
 ): ResolvedCookieOptions {
   return {
     encrypt: override?.encrypt ?? base.encrypt,
@@ -126,7 +126,7 @@ export class CookieStorage {
    * @param name - Cookie name.
    * @param override - Per-key options (overrides factory config).
    */
-  key<T = string>(name: string, override?: CookieOptions): CookieKey<T> {
+  key<T = string>(name: string, override?: CookieKeyOptions): CookieKey<T> {
     return new CookieKey<T>(name, mergeOptions(this.#config, override))
   }
 
@@ -172,12 +172,11 @@ export class CookieKey<T> {
    * Set a cookie value.
    *
    * @param value - Value to store (string, number, boolean, object).
-   * @param options - Cookie options (ttl, encrypt, domain, path, secure, sameSite, httpOnly).
+   * @param options - Cookie options (ttl, domain, path, secure, sameSite, httpOnly).
    */
   set(value: T, options?: SetCookieOptions): void {
     const ttlMs =
       options?.ttl !== undefined ? parseTTL(options.ttl) : this.#defaults.ttlMs
-    const shouldEncrypt = options?.encrypt ?? this.#encrypt
 
     let stringValue: string
     if (typeof value === 'string') {
@@ -186,7 +185,7 @@ export class CookieKey<T> {
       stringValue = JSON.stringify(value)
     }
 
-    if (shouldEncrypt) {
+    if (this.#encrypt) {
       stringValue = encrypt(stringValue, this.#encryptionKey)
     }
 

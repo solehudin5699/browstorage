@@ -14,7 +14,7 @@ interface StorageConfig {
 }
 
 /** Per-key / per-set options for local/session — NO encryptionKey. */
-interface StorageOptions {
+interface StorageKeyOptions {
   /** Override encryption. */
   encrypt?: boolean
   /** Override TTL. */
@@ -31,7 +31,7 @@ interface CookieConfig extends StorageConfig {
 }
 
 /** Per-key / per-set options for cookies — NO encryptionKey. */
-interface CookieOptions extends StorageOptions {
+interface CookieKeyOptions extends StorageKeyOptions {
   domain?: string
   path?: string
   secure?: boolean
@@ -41,12 +41,12 @@ interface CookieOptions extends StorageOptions {
 
 /** Per-set options for local/session storage. */
 interface SetStorageOptions {
-  encrypt?: boolean
   ttl?: TTL
 }
 
 /** Per-set options for cookies. */
-interface SetCookieOptions extends SetStorageOptions {
+interface SetCookieOptions {
+  ttl?: TTL
   domain?: string
   path?: string
   secure?: boolean
@@ -122,9 +122,9 @@ export type {
   Unit,
   TTL,
   StorageConfig,
-  StorageOptions,
+  StorageKeyOptions,
   CookieConfig,
-  CookieOptions,
+  CookieKeyOptions,
   SetStorageOptions,
   SetCookieOptions,
   IndexOptions,

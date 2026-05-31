@@ -11,14 +11,12 @@ export { IndexedDB, ObjectStore, Index, SecureStore } from './storage/indexeddb'
 export type { SecureKey } from './storage/indexeddb'
 
 export { parseTTL } from './ttl'
-export { encrypt, decrypt } from './encryption'
-
 export type {
   TTL,
   StorageConfig,
-  StorageOptions,
+  StorageKeyOptions,
   CookieConfig,
-  CookieOptions,
+  CookieKeyOptions,
   SetStorageOptions,
   SetCookieOptions,
   IndexedDBOptions,

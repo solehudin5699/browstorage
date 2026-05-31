@@ -1,6 +1,6 @@
 import { encrypt, decrypt } from '../encryption'
 import { parseTTL } from '../ttl'
-import type { StorageConfig, StorageOptions, SetStorageOptions, ResolvedStorageOptions } from '../types'
+import type { StorageConfig, StorageKeyOptions, SetStorageOptions, ResolvedStorageOptions } from '../types'
 
 // ===== Helpers =====
 
@@ -14,7 +14,7 @@ function resolveConfig(config?: StorageConfig): ResolvedStorageOptions {
 
 function mergeOptions(
   base: ResolvedStorageOptions,
-  override?: StorageOptions,
+  override?: StorageKeyOptions,
 ): ResolvedStorageOptions {
   return {
     encrypt: override?.encrypt ?? base.encrypt,
@@ -41,7 +41,7 @@ export class SessionStorage {
    * @param name - Storage key.
    * @param override - Per-key options (overrides factory config).
    */
-  key<T = string>(name: string, override?: StorageOptions): SessionKey<T> {
+  key<T = string>(name: string, override?: StorageKeyOptions): SessionKey<T> {
     return new SessionKey<T>(name, mergeOptions(this.#config, override))
   }
 
@@ -91,17 +91,16 @@ export class SessionKey<T> {
    * Store a value in sessionStorage.
    *
    * @param value - Value to store (string, number, boolean, object).
-   * @param options - Per-set override options (ttl, encrypt).
+   * @param options - Per-set override (ttl).
    */
   set(value: T, options?: SetStorageOptions): void {
     if (typeof window === 'undefined') return
 
     const ttlMs = options?.ttl !== undefined ? parseTTL(options.ttl) : this.#ttlMs
-    const shouldEncrypt = options?.encrypt ?? this.#encrypt
 
     const exp = ttlMs !== undefined ? Date.now() + ttlMs : undefined
     let storedValue: unknown = value
-    if (shouldEncrypt) {
+    if (this.#encrypt) {
       storedValue = encrypt(JSON.stringify(value), this.#encryptionKey)
     }
     const payload: Record<string, unknown> = { value: storedValue }
