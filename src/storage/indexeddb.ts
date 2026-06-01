@@ -91,6 +91,17 @@ async function indexesMismatch(
     ) {
       return true
     }
+
+    for (const idx of s.indexes ?? []) {
+      const actualIdx = store.index(idx.name)
+      if (
+        actualIdx.unique !== (idx.unique ?? false)
+        || actualIdx.multiEntry !== (idx.multiEntry ?? false)
+        ||         JSON.stringify(actualIdx.keyPath) !== JSON.stringify(idx.keyPath)
+      ) {
+        return true
+      }
+    }
   }
   return false
 }
