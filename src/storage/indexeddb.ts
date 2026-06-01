@@ -345,6 +345,11 @@ export class IndexedDB<
       )
     }
     activeInstances.add(this.#config.dbName)
+
+    if (typeof indexedDB !== 'undefined') {
+      const allSchemas = mergeSchemas(this.#config.stores, this.#config.secureStores)
+      getConnection(this.#config.dbName, allSchemas)
+    }
   }
 
   objectStore<T>(name: S[number]['name']): ObjectStore<T> {
