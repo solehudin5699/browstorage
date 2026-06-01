@@ -621,6 +621,7 @@ export class SecureKey<T> {
 
   async set(value: T, options?: SecureSetOptions): Promise<void> {
     if (typeof indexedDB === 'undefined') return
+    if (value === undefined) { await this.remove(); return }
 
     const ttlMs = options?.ttl !== undefined ? parseTTL(options.ttl) : this.#ttlMs
     const record = prepareSecureValue(value, this.#encryptionKey, ttlMs)

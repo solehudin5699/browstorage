@@ -95,6 +95,7 @@ export class SessionKey<T> {
    */
   set(value: T, options?: SetStorageOptions): void {
     if (typeof window === 'undefined') return
+    if (value === undefined) { this.remove(); return }
 
     const ttlMs = options?.ttl !== undefined ? parseTTL(options.ttl) : this.#ttlMs
 

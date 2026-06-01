@@ -175,6 +175,7 @@ export class CookieKey<T> {
    * @param options - Cookie options (ttl, domain, path, secure, sameSite, httpOnly).
    */
   set(value: T, options?: SetCookieOptions): void {
+    if (value === undefined) { this.remove(); return }
     const ttlMs =
       options?.ttl !== undefined ? parseTTL(options.ttl) : this.#defaults.ttlMs
 
