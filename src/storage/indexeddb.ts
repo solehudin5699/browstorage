@@ -403,18 +403,16 @@ export class IndexedDB<
 
 export class ObjectStore<T> {
   #name: string
-  #schema: ObjectStoreSchema
   #dbName: string
   #schemaList: readonly ObjectStoreSchema[]
 
   constructor(
     name: string,
-    schema: ObjectStoreSchema,
+    _schema: ObjectStoreSchema,
     dbName: string,
     schemaList: readonly ObjectStoreSchema[],
   ) {
     this.#name = name
-    this.#schema = schema
     this.#dbName = dbName
     this.#schemaList = schemaList
   }
