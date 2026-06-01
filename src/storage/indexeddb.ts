@@ -12,6 +12,17 @@ import { parseTTL } from '../ttl'
 // ===== Connection Pool =====
 
 const connections = new Map<string, Promise<IDBDatabase>>()
+const activeInstances = new Set<string>()
+
+/** @internal Exposed for testing only. */
+export function _clearConnections(): void {
+  connections.clear()
+}
+
+/** @internal Exposed for testing only. */
+export function _clearInstances(): void {
+  activeInstances.clear()
+}
 
 async function readMeta(
   db: IDBDatabase,
@@ -311,6 +322,18 @@ export class IndexedDB<
 
   constructor(config?: IndexedDBConfig<S, K>) {
     this.#config = resolveConfig(config)
+
+    if (activeInstances.has(this.#config.dbName)) {
+      console.error(
+        `[browstorage] Database name "${this.#config.dbName}" is already in use. ` +
+        `Each IndexedDB instance must have a unique dbName.`
+      )
+      throw new Error(
+        `[browstorage] Database name "${this.#config.dbName}" is already in use. ` +
+        `Each IndexedDB instance must have a unique dbName.`
+      )
+    }
+    activeInstances.add(this.#config.dbName)
   }
 
   objectStore<T>(name: S[number]['name']): ObjectStore<T> {
@@ -364,6 +387,8 @@ export class IndexedDB<
   }
 
   async close(): Promise<void> {
+    activeInstances.delete(this.#config.dbName)
+
     const allSchemas = mergeSchemas(this.#config.stores, this.#config.secureStores)
     const promise = connections.get(this.#config.dbName)
     if (!promise) return
