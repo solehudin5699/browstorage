@@ -1,8 +1,10 @@
 import 'fake-indexeddb/auto'
 import { describe, it, expect, beforeEach } from 'vitest'
-import { IndexedDB } from '../storage/indexeddb'
+import { IndexedDB, _clearConnections, _clearInstances } from '../storage/indexeddb'
 
 async function deleteDB(name: string): Promise<void> {
+  _clearInstances()
+  _clearConnections()
   await new Promise<void>((resolve, reject) => {
     const req = indexedDB.deleteDatabase(name)
     req.onsuccess = () => resolve()
@@ -241,6 +243,15 @@ describe('IndexedDB (factory)', () => {
     await sessions.key('alice').set({ role: 'admin' })
     await db.clear()
     expect(await db.size()).toBe(0)
+  })
+
+  it('throws when creating second instance with same dbName', async () => {
+    const db1 = createDB()
+    expect(() => new IndexedDB({ dbName: 'test-db' })).toThrow(
+      'Database name "test-db" is already in use',
+    )
+    // Cleanup
+    await db1.close()
   })
 })
 
@@ -785,6 +796,7 @@ describe('SecureStore', () => {
     })
     const s1 = db1.secureStore('sessions')
     await s1.key('test').set('secret')
+    await db1.close()
 
     const db2 = new IndexedDB({
       dbName: 'test-db',
@@ -792,6 +804,7 @@ describe('SecureStore', () => {
     })
     const s2 = db2.secureStore('sessions')
     expect(await s2.key('test').get()).toBeUndefined()
+    await db2.close()
   })
 
   it('TTL from schema default', async () => {
