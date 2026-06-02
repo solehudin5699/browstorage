@@ -80,9 +80,17 @@ function removeCookie(
 // ===== Helpers =====
 
 function resolveConfig(config?: CookieConfig): ResolvedCookieOptions {
+  let encrypt = config?.encrypt ?? false
+  const encryptionKey = config?.encryptionKey ?? ''
+
+  if (encrypt && !encryptionKey) {
+    console.warn('[browstorage] encryptionKey is missing. Encryption disabled.')
+    encrypt = false
+  }
+
   return {
-    encrypt: config?.encrypt ?? false,
-    encryptionKey: config?.encryptionKey ?? '',
+    encrypt,
+    encryptionKey,
     ttlMs: config?.ttl !== undefined ? parseTTL(config.ttl) : undefined,
     domain: config?.domain,
     path: config?.path ?? '/',
@@ -96,8 +104,15 @@ function mergeOptions(
   base: ResolvedCookieOptions,
   override?: CookieKeyOptions,
 ): ResolvedCookieOptions {
+  let encrypt = override?.encrypt ?? base.encrypt
+
+  if (encrypt && !base.encryptionKey) {
+    console.warn('[browstorage] encryptionKey not configured at factory level. Encryption disabled for this key.')
+    encrypt = false
+  }
+
   return {
-    encrypt: override?.encrypt ?? base.encrypt,
+    encrypt,
     encryptionKey: base.encryptionKey,
     ttlMs: override?.ttl !== undefined ? parseTTL(override.ttl) : base.ttlMs,
     domain: override?.domain ?? base.domain,
@@ -124,10 +139,11 @@ export class CookieStorage {
    * Create a per-key binding.
    *
    * @param name - Cookie name.
-   * @param override - Per-key options (overrides factory config).
+   * @param options - Per-key options (encrypt, ttl, domain, path, secure, sameSite, httpOnly). Overrides factory config.
+   * @returns A CookieKey scoped to the given cookie name.
    */
-  key<T = string>(name: string, override?: CookieKeyOptions): CookieKey<T> {
-    return new CookieKey<T>(name, mergeOptions(this.#config, override))
+  key<T = string>(name: string, options?: CookieKeyOptions): CookieKey<T> {
+    return new CookieKey<T>(name, mergeOptions(this.#config, options))
   }
 
   /**
@@ -203,6 +219,8 @@ export class CookieKey<T> {
   /**
    * Get the cookie value.
    *
+   * Removes the cookie if decryption fails (wrong key).
+   *
    * @returns The stored value, or `undefined` if missing.
    */
   get(): T | undefined {
@@ -212,7 +230,7 @@ export class CookieKey<T> {
     let finalValue = value
     if (this.#encrypt) {
       const decrypted = decrypt(value, this.#encryptionKey)
-      if (decrypted === null) return undefined
+      if (decrypted === null) { this.remove(); return undefined }
       finalValue = decrypted
     }
 

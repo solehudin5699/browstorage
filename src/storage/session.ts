@@ -5,9 +5,17 @@ import type { StorageConfig, StorageKeyOptions, SetStorageOptions, ResolvedStora
 // ===== Helpers =====
 
 function resolveConfig(config?: StorageConfig): ResolvedStorageOptions {
+  let encrypt = config?.encrypt ?? false
+  const encryptionKey = config?.encryptionKey ?? ''
+
+  if (encrypt && !encryptionKey) {
+    console.warn('[browstorage] encryptionKey is missing. Encryption disabled.')
+    encrypt = false
+  }
+
   return {
-    encrypt: config?.encrypt ?? false,
-    encryptionKey: config?.encryptionKey ?? '',
+    encrypt,
+    encryptionKey,
     ttlMs: config?.ttl !== undefined ? parseTTL(config.ttl) : undefined,
   }
 }
@@ -16,8 +24,15 @@ function mergeOptions(
   base: ResolvedStorageOptions,
   override?: StorageKeyOptions,
 ): ResolvedStorageOptions {
+  let encrypt = override?.encrypt ?? base.encrypt
+
+  if (encrypt && !base.encryptionKey) {
+    console.warn('[browstorage] encryptionKey not configured at factory level. Encryption disabled for this key.')
+    encrypt = false
+  }
+
   return {
-    encrypt: override?.encrypt ?? base.encrypt,
+    encrypt,
     encryptionKey: base.encryptionKey,
     ttlMs: override?.ttl !== undefined ? parseTTL(override.ttl) : base.ttlMs,
   }
@@ -31,6 +46,11 @@ function mergeOptions(
 export class SessionStorage {
   #config: ResolvedStorageOptions
 
+  /**
+   * Create a `sessionStorage`-backed storage instance.
+   *
+   * @param config - Factory options (encrypt, encryptionKey, ttl).
+   */
   constructor(config?: StorageConfig) {
     this.#config = resolveConfig(config)
   }
@@ -39,10 +59,11 @@ export class SessionStorage {
    * Create a per-key binding.
    *
    * @param name - Storage key.
-   * @param override - Per-key options (overrides factory config).
+   * @param options - Per-key options (encrypt, ttl). Overrides factory config.
+   * @returns A SessionKey scoped to the given key name.
    */
-  key<T = string>(name: string, override?: StorageKeyOptions): SessionKey<T> {
-    return new SessionKey<T>(name, mergeOptions(this.#config, override))
+  key<T = string>(name: string, options?: StorageKeyOptions): SessionKey<T> {
+    return new SessionKey<T>(name, mergeOptions(this.#config, options))
   }
 
   /**
@@ -55,6 +76,8 @@ export class SessionStorage {
 
   /**
    * Estimated total size of all sessionStorage data in bytes.
+   *
+   * @returns Estimated total data size in bytes.
    */
   size(): number {
     if (typeof window === 'undefined') return 0
@@ -90,8 +113,8 @@ export class SessionKey<T> {
   /**
    * Store a value in sessionStorage.
    *
-   * @param value - Value to store (string, number, boolean, object).
-   * @param options - Per-set override (ttl).
+   * @param value - The value to store. Passing `undefined` is equivalent to calling `remove()`.
+   * @param options - Per-set options (TTL overrides key-level and factory defaults).
    */
   set(value: T, options?: SetStorageOptions): void {
     if (typeof window === 'undefined') return
@@ -172,6 +195,8 @@ export class SessionKey<T> {
 
   /**
    * Check if the key exists and is not expired.
+   *
+   * @returns `true` if the key exists and is not expired.
    */
   has(): boolean {
     if (typeof window === 'undefined') return false
@@ -181,10 +206,14 @@ export class SessionKey<T> {
     try {
       parsed = JSON.parse(cached)
     } catch {
+      this.remove()
       return false
     }
     const exp = parsed.exp as number | undefined
-    if (exp !== undefined && Date.now() > exp) return false
+    if (exp !== undefined && Date.now() > exp) {
+      this.remove()
+      return false
+    }
     return true
   }
 

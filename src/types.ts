@@ -105,18 +105,18 @@ interface SecureSetOptions {
 
 /** Factory config for IndexedDB. */
 interface IndexedDBConfig<
-  S extends readonly ObjectStoreSchema[] = readonly ObjectStoreSchema[],
-  K extends readonly SecureStoreSchema[] = readonly SecureStoreSchema[],
+  S extends readonly ObjectStoreSchema[] = readonly [],
+  K extends readonly SecureStoreSchema[] = readonly [],
 > {
-  dbName?: string
+  dbName: string
   stores?: S
   secureStores?: K
 }
 
 /** Internal resolved IndexedDB options. */
 interface ResolvedDBOptions<
-  S extends readonly ObjectStoreSchema[] = readonly ObjectStoreSchema[],
-  K extends readonly SecureStoreSchema[] = readonly SecureStoreSchema[],
+  S extends readonly ObjectStoreSchema[] = readonly [],
+  K extends readonly SecureStoreSchema[] = readonly [],
 > {
   dbName: string
   stores: S
