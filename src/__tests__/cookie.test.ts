@@ -5,7 +5,7 @@ describe('CookieKey', () => {
   beforeEach(() => {
     document.cookie.split('; ').forEach((c) => {
       const name = c.split('=')[0]
-      document.cookie = `${name}=; max-age=0`
+      document.cookie = `${name}=; max-age=0; path=/`
     })
   })
 
@@ -194,7 +194,7 @@ describe('CookieStorage (factory)', () => {
   beforeEach(() => {
     document.cookie.split('; ').forEach((c) => {
       const name = c.split('=')[0]
-      document.cookie = `${name}=; max-age=0`
+      document.cookie = `${name}=; max-age=0; path=/`
     })
   })
 
