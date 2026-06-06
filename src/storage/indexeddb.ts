@@ -135,7 +135,20 @@ function openDB(
 
           if (s.indexes) {
             for (const idx of s.indexes) {
-              if (!store.indexNames.contains(idx.name)) {
+              if (store.indexNames.contains(idx.name)) {
+                const existing = store.index(idx.name)
+                const changed =
+                  existing.unique !== (idx.unique ?? false) ||
+                  existing.multiEntry !== (idx.multiEntry ?? false) ||
+                  JSON.stringify(existing.keyPath) !== JSON.stringify(idx.keyPath)
+                if (changed) {
+                  store.deleteIndex(idx.name)
+                  store.createIndex(idx.name, idx.keyPath, {
+                    unique: idx.unique ?? false,
+                    multiEntry: idx.multiEntry ?? false,
+                  })
+                }
+              } else {
                 store.createIndex(idx.name, idx.keyPath, {
                   unique: idx.unique ?? false,
                   multiEntry: idx.multiEntry ?? false,
