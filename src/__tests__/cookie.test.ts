@@ -205,32 +205,10 @@ describe('CookieStorage (factory)', () => {
     expect(k.get()).toBe('value')
   })
 
-  it('clear() removes all cookies', () => {
-    const cookie = new CookieStorage()
-    const a = cookie.key<string>('cookie-a', { path: '/' })
-    const b = cookie.key<string>('cookie-b', { path: '/' })
-    a.set('val-a')
-    b.set('val-b')
-    expect(a.get()).toBe('val-a')
-    expect(b.get()).toBe('val-b')
-    cookie.clear()
-    expect(a.get()).toBeUndefined()
-    expect(b.get()).toBeUndefined()
-  })
-
   it('size() returns cookie string length', () => {
     const cookie = new CookieStorage()
     const k = cookie.key<string>('size-cookie', { path: '/' })
     k.set('hello')
     expect(cookie.size()).toBeGreaterThan(0)
-  })
-
-  it('SSR guard on clear() does not throw', () => {
-    const doc = globalThis.document
-    ;(globalThis as any).document = undefined
-    const cookie = new CookieStorage()
-    expect(() => cookie.clear()).not.toThrow()
-    expect(cookie.size()).toBe(0)
-    globalThis.document = doc
   })
 })

@@ -14,13 +14,18 @@ function encodeCookieValue(name: string, value: string): string {
 }
 
 function parseCookieString(cookie: string): Record<string, string> {
-  const result: Record<string, string> = {}
+  const result = Object.create(null)
   const items = cookie.split('; ')
   for (const item of items) {
     const eqIdx = item.indexOf('=')
     if (eqIdx === -1) continue
-    const key = decodeURIComponent(item.slice(0, eqIdx))
-    const value = decodeURIComponent(item.slice(eqIdx + 1))
+    let key: string, value: string
+    try {
+      key = decodeURIComponent(item.slice(0, eqIdx))
+      value = decodeURIComponent(item.slice(eqIdx + 1))
+    } catch {
+      continue
+    }
     result[key] = value
   }
   return result
@@ -144,17 +149,6 @@ export class CookieStorage {
    */
   key<T = string>(name: string, options?: CookieKeyOptions): CookieKey<T> {
     return new CookieKey<T>(name, mergeOptions(this.#config, options))
-  }
-
-  /**
-   * Clear all cookies accessible from the current path.
-   */
-  clear(): void {
-    if (typeof document === 'undefined') return
-    const cookies = parseCookieString(document.cookie)
-    for (const name of Object.keys(cookies)) {
-      setCookie(name, '', { path: '/', ttlMs: 0 })
-    }
   }
 
   /**
