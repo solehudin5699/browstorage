@@ -49,6 +49,9 @@ function setCookie(
 
   if (options.ttlMs !== undefined) {
     cookie += `; max-age=${Math.floor(options.ttlMs / 1000)}`
+    if (options.ttlMs <= 0) {
+      cookie += '; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    }
   }
   if (options.domain) cookie += `; domain=${options.domain}`
   if (options.path) cookie += `; path=${options.path}`
@@ -71,7 +74,7 @@ function getCookie(name: string): string | undefined {
   if (typeof document === 'undefined') return undefined
   const cookies = parseCookieString(document.cookie)
   const value = cookies[name]
-  if (value === '' || value === undefined) return undefined
+  if (value === undefined) return undefined
   return value
 }
 
@@ -190,7 +193,7 @@ export class CookieKey<T> {
       options?.ttl !== undefined ? parseTTL(options.ttl) : this.#defaults.ttlMs
 
     let stringValue: string
-    if (typeof value === 'string') {
+    if (typeof value === 'string' && value.length > 0) {
       stringValue = value
     } else {
       stringValue = JSON.stringify(value)
@@ -219,7 +222,7 @@ export class CookieKey<T> {
    */
   get(): T | undefined {
     const value = getCookie(this.#name)
-    if (value === undefined) return undefined
+  if (value === '' || value === undefined) return undefined
 
     let finalValue = value
     if (this.#encrypt) {
