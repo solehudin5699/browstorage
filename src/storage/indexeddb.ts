@@ -127,6 +127,31 @@ function openDB(
         if (db.objectStoreNames.contains(s.name)) {
           const store = req.transaction!.objectStore(s.name)
 
+          const storedKeyPath = JSON.stringify(store.keyPath)
+          const schemaKeyPath = JSON.stringify(s.keyPath)
+          const aiChanged = store.autoIncrement !== (s.autoIncrement ?? false)
+
+          if (storedKeyPath !== schemaKeyPath || aiChanged) {
+            console.warn(
+              `[browstorage] Store "${s.name}" keyPath/autoIncrement changed. ` +
+              `Deleting and recreating store. All data in "${s.name}" will be lost.`
+            )
+            db.deleteObjectStore(s.name)
+            const newStore = db.createObjectStore(s.name, {
+              keyPath: s.keyPath,
+              autoIncrement: s.autoIncrement ?? false,
+            })
+            if (s.indexes) {
+              for (const idx of s.indexes) {
+                newStore.createIndex(idx.name, idx.keyPath, {
+                  unique: idx.unique ?? false,
+                  multiEntry: idx.multiEntry ?? false,
+                })
+              }
+            }
+            continue
+          }
+
           for (const idxName of Array.from(store.indexNames)) {
             if (!s.indexes?.some(i => i.name === idxName)) {
               store.deleteIndex(idxName)
@@ -350,6 +375,9 @@ export class IndexedDB<
    *
    * Eagerly opens the database connection and runs pending migrations.
    * Only one instance per `dbName` is allowed.
+   *
+   * **Migration note:** Changing `keyPath` or `autoIncrement` on an existing store
+   * will delete all data in that store and recreate it with the new schema.
    *
    * @param config - Schema configuration (dbName, stores, secureStores).
    *

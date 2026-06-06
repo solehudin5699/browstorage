@@ -80,9 +80,16 @@ interface IndexOptions {
 
 /** Defines an object store schema (plain, structured clone, supports indexes). */
 interface ObjectStoreSchema {
+  /** Store name. Used to reference the store via `objectStore()` and `secureStore()`. */
   name: string
+  /**
+   * Primary key field path. Can be a single field (string) or composite key (string array).
+   * Changing this on an existing store will delete all data and recreate the store during migration.
+   */
   keyPath: string | string[]
+  /** @default false. Changing this will delete all data and recreate the store during migration. */
   autoIncrement?: boolean
+  /** Secondary indexes for querying by non-key fields. */
   indexes?: IndexOptions[]
 }
 
