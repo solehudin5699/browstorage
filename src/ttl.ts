@@ -3,7 +3,7 @@ import type { Unit, TTL } from './types'
 /**
  * Parse various TTL formats into milliseconds.
  *
- * @param ttl - TTL in one of these formats: number (ms), string with unit (`'30s'`, `'2h'`, `'7d'`, `'1w'`), or a `Date` object.
+ * @param ttl - TTL in one of these formats: number (ms), string with unit (`'30s'`, `'2h'`, `'7d'`, `'1w'`), a `Date` object, or `null` (no TTL).
  * @returns Milliseconds, or `undefined` if no TTL is provided.
  */
 export function parseTTL(ttl: TTL | undefined): number | undefined {
@@ -14,7 +14,10 @@ export function parseTTL(ttl: TTL | undefined): number | undefined {
     return diff
   }
 
-  if (typeof ttl === 'number') return ttl
+  if (typeof ttl === 'number') {
+    if (!isFinite(ttl)) return undefined
+    return ttl
+  }
 
   const match = ttl.match(/^(-?\d+)(ms|s|m|h|d|w)$/)
   if (!match) {

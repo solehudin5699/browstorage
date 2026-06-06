@@ -1,7 +1,7 @@
 type Unit = 'ms' | 's' | 'm' | 'h' | 'd' | 'w'
 
-/** TTL format: number (ms), string unit, or absolute Date. */
-type TTL = number | `${number}${Unit}` | Date
+/** TTL format: number (ms), string unit, absolute Date, or null (no TTL). */
+type TTL = number | `${number}${Unit}` | Date | null
 
 /** Factory config for local/session storage (includes encryptionKey). */
 interface StorageConfig {

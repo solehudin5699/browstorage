@@ -13,6 +13,7 @@ export type { SecureKey } from './storage/indexeddb'
 export { parseTTL } from './ttl'
 export type {
   TTL,
+  Unit,
   StorageConfig,
   StorageKeyOptions,
   CookieConfig,
