@@ -823,8 +823,7 @@ export class SecureKey<T> {
   /**
    * Check if the key exists and has not expired.
    *
-   * Unlike `get()`, this method does **not** decrypt the value, making it faster
-   * for simple existence checks.
+   * Automatically removes the key if expired or if the encryption key is incorrect.
    *
    * @returns `true` if the key exists and is still valid.
    */
@@ -838,6 +837,15 @@ export class SecureKey<T> {
     if (!record) return false
 
     if (record.$exp !== undefined && Date.now() > record.$exp) {
+      await withStore(
+        this.#dbName, this.#storeName, 'readwrite', this.#allSchemas,
+        store => store.delete(this.#key),
+      )
+      return false
+    }
+
+    const decrypted = decrypt(record.$data, this.#encryptionKey)
+    if (decrypted === null) {
       await withStore(
         this.#dbName, this.#storeName, 'readwrite', this.#allSchemas,
         store => store.delete(this.#key),

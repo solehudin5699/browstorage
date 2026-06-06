@@ -214,6 +214,10 @@ export class LocalKey<T> {
       this.remove()
       return false
     }
+    if (this.#encrypt) {
+      const decrypted = decrypt(parsed.value as string, this.#encryptionKey)
+      if (decrypted === null) { this.remove(); return false }
+    }
     return true
   }
 

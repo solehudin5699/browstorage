@@ -251,7 +251,12 @@ export class CookieKey<T> {
    * Check if the cookie exists.
    */
   has(): boolean {
-    return getCookie(this.#name) !== undefined
+    const value = getCookie(this.#name)
+    if (value === undefined) return false
+    if (!this.#encrypt) return true
+    const decrypted = decrypt(value, this.#encryptionKey)
+    if (decrypted === null) { this.remove(); return false }
+    return true
   }
 
 }
