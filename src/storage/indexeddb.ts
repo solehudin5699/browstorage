@@ -27,10 +27,10 @@ export function _clearInstances(): void {
 async function readMeta(
   db: IDBDatabase,
 ): Promise<{ version: number; schema: ObjectStoreSchema[] } | null> {
-  if (!db.objectStoreNames.contains('_meta')) return null
+  if (!db.objectStoreNames.contains('__bs_meta__')) return null
   return new Promise((resolve, reject) => {
-    const tx = db.transaction('_meta', 'readonly')
-    const req = tx.objectStore('_meta').get('schema')
+    const tx = db.transaction('__bs_meta__', 'readonly')
+    const req = tx.objectStore('__bs_meta__').get('schema')
     req.onsuccess = () => resolve(req.result ?? null)
     req.onerror = () => reject(req.error)
   })
@@ -41,8 +41,8 @@ async function writeMeta(
   schema: readonly ObjectStoreSchema[],
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const tx = db.transaction('_meta', 'readwrite')
-    tx.objectStore('_meta').put({
+    const tx = db.transaction('__bs_meta__', 'readwrite')
+    tx.objectStore('__bs_meta__').put({
       key: 'schema',
       schema: schema as ObjectStoreSchema[],
       version: db.version,
@@ -119,8 +119,8 @@ function openDB(
     req.onupgradeneeded = () => {
       const db = req.result
 
-      if (!db.objectStoreNames.contains('_meta')) {
-        db.createObjectStore('_meta', { keyPath: 'key' })
+      if (!db.objectStoreNames.contains('__bs_meta__')) {
+        db.createObjectStore('__bs_meta__', { keyPath: 'key' })
       }
 
       for (const s of schema) {
@@ -232,7 +232,7 @@ async function getConnection(
     const stored = await readMeta(db)
 
     if (stored === null) {
-      if (db.objectStoreNames.contains('_meta')) {
+      if (db.objectStoreNames.contains('__bs_meta__')) {
         if (await indexesMismatch(db, schema)) {
           const newVersion = db.version + 1
           db.close()
@@ -356,6 +356,22 @@ function resolveConfig<
 >(
   config: IndexedDBConfig<S, K>,
 ): ResolvedDBOptions<S, K> {
+  const reserved = '__bs_meta__'
+
+  for (const s of config.stores ?? []) {
+    if (s.name === reserved) {
+      console.error(`[browstorage] Store name "${reserved}" is reserved for internal use.`)
+      throw new Error(`[browstorage] Store name "${reserved}" is reserved for internal use.`)
+    }
+  }
+
+  for (const s of config.secureStores ?? []) {
+    if (s.name === reserved) {
+      console.error(`[browstorage] Secure store name "${reserved}" is reserved for internal use.`)
+      throw new Error(`[browstorage] Secure store name "${reserved}" is reserved for internal use.`)
+    }
+  }
+
   return {
     dbName: config.dbName,
     stores: (config?.stores ?? []) as S,
@@ -447,7 +463,7 @@ export class IndexedDB<
   }
 
   /**
-   * Remove all data from every store (excluding the internal `_meta` store).
+   * Remove all data from every store (excluding the internal `__bs_meta__` store).
    */
   async clear(): Promise<void> {
     if (typeof indexedDB === 'undefined') return
@@ -455,7 +471,7 @@ export class IndexedDB<
     const allSchemas = mergeSchemas(this.#config.stores, this.#config.secureStores)
     const db = await getConnection(this.#config.dbName, allSchemas)
     const storeNames = Array.from(db.objectStoreNames).filter(
-      n => n !== '_meta',
+      n => n !== '__bs_meta__',
     )
 
     for (const name of storeNames) {
@@ -529,12 +545,12 @@ export class ObjectStore<T> {
    * Insert a new record.
    *
    * @param record - The record to add. Must include the primary key unless `autoIncrement` is enabled.
-   * @returns The primary key of the inserted record.
+   * @returns The primary key of the inserted record, or `undefined` in SSR / non-browser environments.
    *
    * @throws {Error} If a record with the same key already exists.
    */
-  async add(record: T): Promise<IDBValidKey> {
-    if (typeof indexedDB === 'undefined') return undefined as unknown as IDBValidKey
+  async add(record: T): Promise<IDBValidKey | undefined> {
+    if (typeof indexedDB === 'undefined') return undefined
 
     return withStore(
       this.#dbName, this.#name, 'readwrite', this.#schemaList,
@@ -548,10 +564,10 @@ export class ObjectStore<T> {
    * Unlike `add()`, `put()` will overwrite an existing record with the same key.
    *
    * @param record - The record to store.
-   * @returns The primary key.
+   * @returns The primary key, or `undefined` in SSR / non-browser environments.
    */
-  async put(record: T): Promise<IDBValidKey> {
-    if (typeof indexedDB === 'undefined') return undefined as unknown as IDBValidKey
+  async put(record: T): Promise<IDBValidKey | undefined> {
+    if (typeof indexedDB === 'undefined') return undefined
 
     return withStore(
       this.#dbName, this.#name, 'readwrite', this.#schemaList,
@@ -610,7 +626,7 @@ export class ObjectStore<T> {
     return withStore(
       this.#dbName, this.#name, 'readonly', this.#schemaList,
       store => store.getAllKeys(),
-    ) ?? []
+    )
   }
 
   /**
@@ -717,7 +733,7 @@ export class Index<T> {
     return withStore(
       this.#dbName, this.#storeName, 'readonly', this.#schemaList,
       store => store.index(this.#indexName).getAllKeys(value),
-    ) ?? []
+    )
   }
 
   /**

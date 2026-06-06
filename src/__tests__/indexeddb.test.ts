@@ -49,7 +49,7 @@ describe('ObjectStore — basic CRUD', () => {
     const db = createDB()
     const users = db.objectStore<User>('users')
     const id = await users.add({ id: 1, name: 'Alice', age: 30 })
-    const got = await users.get(id)
+    const got = await users.get(id as number)
     expect(got).toEqual({ id: 1, name: 'Alice', age: 30 })
   })
 
@@ -411,8 +411,8 @@ describe('Migration', () => {
       req.onerror = () => reject(req.error)
     })
     const meta = await new Promise<any>((resolve, reject) => {
-      const tx = db.transaction('_meta', 'readonly')
-      const req = tx.objectStore('_meta').get('schema')
+      const tx = db.transaction('__bs_meta__', 'readonly')
+      const req = tx.objectStore('__bs_meta__').get('schema')
       req.onsuccess = () => resolve(req.result)
       req.onerror = () => reject(req.error)
     })
@@ -512,7 +512,7 @@ describe('Migration', () => {
     await db2.close()
   })
 
-  it('migrates index removal when _meta lacks schema record (old code compat)', async () => {
+  it('migrates index removal when __bs_meta__ lacks schema record (old code compat)', async () => {
     await deleteDB('mig-test-old')
 
     await new Promise<void>((resolve, reject) => {
@@ -523,7 +523,7 @@ describe('Migration', () => {
         store.createIndex('byName', 'name')
         store.createIndex('byRole', 'role')
         store.createIndex('byEmail', 'email')
-        db.createObjectStore('_meta', { keyPath: 'key' })
+        db.createObjectStore('__bs_meta__', { keyPath: 'key' })
       }
       req.onsuccess = () => {
         req.result.close()
@@ -645,7 +645,7 @@ describe('Migration', () => {
         store.createIndex('byName', 'name')
         store.createIndex('byRole', 'role')
         store.createIndex('byEmail', 'email')
-        db.createObjectStore('_meta', { keyPath: 'key' })
+        db.createObjectStore('__bs_meta__', { keyPath: 'key' })
       }
       req.onsuccess = () => { req.result.close(); resolve() }
       req.onerror = () => reject(req.error)
