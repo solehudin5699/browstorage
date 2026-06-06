@@ -8,7 +8,11 @@ import type { Unit, TTL } from './types'
  */
 export function parseTTL(ttl: TTL | undefined): number | undefined {
   if (ttl === null || ttl === undefined) return undefined
-  if (ttl instanceof Date) return ttl.getTime() - Date.now()
+  if (ttl instanceof Date) {
+    const diff = ttl.getTime() - Date.now()
+    if (isNaN(diff)) return undefined
+    return diff
+  }
 
   if (typeof ttl === 'number') return ttl
 
