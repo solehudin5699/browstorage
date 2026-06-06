@@ -7,7 +7,7 @@ import type { Unit, TTL } from './types'
  * @returns Milliseconds, or `undefined` if no TTL is provided.
  */
 export function parseTTL(ttl: TTL | undefined): number | undefined {
-  if (ttl === undefined) return undefined
+  if (ttl === null || ttl === undefined) return undefined
   if (ttl instanceof Date) return ttl.getTime() - Date.now()
 
   if (typeof ttl === 'number') return ttl
