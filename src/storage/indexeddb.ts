@@ -288,6 +288,7 @@ function withStore<T>(
         const req = fn(tx.objectStore(storeName))
         req.onsuccess = () => resolve(req.result)
         req.onerror = () => reject(req.error)
+        tx.onabort = () => reject(tx.error || new Error('[browstorage] Transaction aborted'))
       }),
   )
 }
