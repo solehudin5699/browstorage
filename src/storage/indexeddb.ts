@@ -198,26 +198,27 @@ async function getConnection(
         if (await indexesMismatch(db, schema)) {
           const newVersion = db.version + 1
           db.close()
-          connections.delete(dbName)
           const upgradedPromise = openDB(dbName, schema, newVersion)
-          connections.set(dbName, upgradedPromise)
           const upgradedDb = await upgradedPromise
           await writeMeta(upgradedDb, schema)
           return upgradedDb
         }
+        await writeMeta(db, schema)
+        return db
       }
-      await writeMeta(db, schema)
-      return db
+      const newVersion = db.version + 1
+      db.close()
+      const upgradedDb = await openDB(dbName, schema, newVersion)
+      await writeMeta(upgradedDb, schema)
+      return upgradedDb
     }
 
     if (schemasEqual(stored.schema, schema)) return db
 
     const newVersion = stored.version + 1
     db.close()
-    connections.delete(dbName)
 
     const upgradedPromise = openDB(dbName, schema, newVersion)
-    connections.set(dbName, upgradedPromise)
     const upgradedDb = await upgradedPromise
     await writeMeta(upgradedDb, schema)
     return upgradedDb
