@@ -31,7 +31,7 @@ cart.get()        // { items: 3 }
 
 // --- Cookie ---
 const cookie = new CookieStorage({ path: '/', sameSite: 'lax' })
-const sess = cookie.key('session')
+const sess = cookie.key<string>('session')
 
 sess.set('abc123')
 sess.get()        // 'abc123'
@@ -44,16 +44,19 @@ const db = new IndexedDB({
   secureStores: [{ name: 'sessions', encryptionKey: 'secret', ttl: '24h' }],
 })
 const users = db.objectStore<User>('users')
-await users.add({ name: 'Alice' })
+await users.add({ name: 'John Done' })
 const all = await users.getAll()
 
-const auth = db.secureStore('sessions').key<Session>('alice')
-await auth.set({ role: 'admin' })
+const sessions = db.secureStore('sessions')
+const userRole = sessions.key<Role>('userRole')
+await userRole.set({ role: 'admin' })
 
 // --- Factory methods ---
 local.clear()     // localStorage.clear()
 local.size()      // estimated total bytes
 ```
+
+For detailed documentation, see the [documentation](https://github.com/solehudin5699/browstorage/blob/main/docs/index.md).
 
 ## TTL (Time-To-Live)
 
@@ -79,6 +82,19 @@ TTL format:
 | `'7d'` | Days |
 | `'1w'` | Weeks |
 | `new Date('2026-12-31')` | Absolute date |
+| `null` | No TTL (override factory/key default) |
+
+### Default Behavior
+
+When no TTL is set, each storage type behaves according to its inherent lifetime:
+
+| Storage | Default lifetime |
+|---------|-----------------|
+| `LocalStorage` | Persistent until explicitly removed |
+| `SessionStorage` | Cleared when tab/window closes |
+| `CookieStorage` | Session cookie (cleared when browser closes) |
+| `IndexedDB` (ObjectStore) | Persistent until explicitly removed |
+| `IndexedDB` (SecureStore) | Persistent until explicitly removed |
 
 ## Encryption
 
@@ -100,6 +116,8 @@ const local = new LocalStorage({ encrypt: true, encryptionKey: 'global-key' })
 const token = local.key<string>('token', { encrypt: false })   // no encryption
 ```
 
+**Note:** `encrypt: true` without `encryptionKey` will log a warning and automatically disable encryption. It will **not** throw an error. This applies to all storage types (local, session, cookie, SecureStore).
+
 ## API Reference
 
 ### `LocalStorage`
@@ -114,7 +132,7 @@ const token = local.key<string>('token', { encrypt: false })   // no encryption
 
 | Method | Description |
 |--------|-------------|
-| `set(value, options?)` | Store a value (override ttl/encrypt) |
+| `set(value, options?)` | Store a value (override ttl) |
 | `get()` | Retrieve value, `undefined` if expired or missing |
 | `remove()` | Remove data |
 | `has()` | Check if key exists and is not expired |
@@ -128,7 +146,6 @@ Same as LocalStorage/LocalKey but backed by `sessionStorage`.
 | Method | Description |
 |--------|-------------|
 | `key<T>(name, options?)` | Create a per-key binding (`CookieKey<T>`) |
-| `clear()` | Clear all cookies accessible from the current path |
 | `size()` | Total cookie string length in bytes |
 
 ### `CookieKey<T>`
@@ -157,7 +174,7 @@ Cookie options:
 Async storage with two types of stores:
 
 - **`ObjectStore<T>`** — table-style, structured clone, secondary indexes. No encryption.
-- **`SecureStore<T>`** → **`SecureKey<T>`** — encrypted key-value via `.key()`, optional TTL.
+- **`SecureStore`** → **`SecureKey<T>`** — encrypted key-value via `.key()`, optional TTL.
 
 #### `IndexedDB` (factory)
 
@@ -167,13 +184,46 @@ Async storage with two types of stores:
 | `secureStore<T>(name)` | Get a secure store by name (encrypted) |
 | `clear()` | Delete all records from all stores |
 | `size()` | Total record count across all stores |
+| `close()` | Close the database connection and release the dbName |
+
+IndexedDB constructor options:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `dbName` | `string` | Database name (must be unique per instance) |
+| `stores` | `ObjectStoreSchema[]` | Plain object stores (table-style, indexes, no encryption) |
+| `secureStores` | `SecureStoreSchema[]` | Encrypted key-value stores (with optional TTL) |
+
+```ts
+interface ObjectStoreSchema {
+  name: string
+  keyPath: string | string[]
+  autoIncrement?: boolean
+  indexes?: IndexOptions[]
+}
+
+interface IndexOptions {
+  name: string
+  keyPath: string | string[]
+  unique?: boolean
+  multiEntry?: boolean
+}
+
+interface SecureStoreSchema {
+  name: string
+  encryptionKey: string
+  ttl?: TTL
+}
+```
+
+**Note:** Each `IndexedDB` instance must have a unique `dbName`. Creating a second instance with the same `dbName` in the same session throws an error.
 
 #### `ObjectStore<T>` (table-style)
 
 | Method | Description |
 |--------|-------------|
-| `add(record)` | Insert a record |
-| `put(record)` | Insert or update a record |
+| `add(record)` | Insert a record, returns the primary key |
+| `put(record)` | Insert or update a record, returns the primary key |
 | `get(key)` | Retrieve record by key |
 | `getAll()` | Retrieve all records |
 | `getAllKeys()` | Retrieve all keys |
@@ -191,7 +241,7 @@ Async storage with two types of stores:
 | `getAllKeys(value?)` | All keys matching index value |
 | `count(value?)` | Count records matching index value |
 
-#### `SecureStore<T>` → `SecureKey<T>` (encrypted key-value)
+#### `SecureStore` → `SecureKey<T>` (encrypted key-value)
 
 | Method | Description |
 |--------|-------------|
@@ -201,7 +251,7 @@ Async storage with two types of stores:
 
 | Method | Description |
 |--------|-------------|
-| `set(value)` | Store encrypted value (async) |
+| `set(value, options?)` | Store encrypted value (async) |
 | `get()` | Retrieve & decrypt, `undefined` if expired or wrong key |
 | `has()` | Check if key exists and not expired |
 | `remove()` | Delete record |
@@ -258,7 +308,7 @@ interface User {
 const local = new LocalStorage()
 const user = local.key<User>('user')
 
-user.set({ id: 1, name: 'Alice', email: 'alice@example.com' })
+user.set({ id: 1, name: 'John Doe', email: 'johndoe@example.com' })
 const data = user.get()  // User | undefined
 ```
 
@@ -269,8 +319,9 @@ All methods are safe to call on the server:
 - `.get()` — returns `undefined`
 - `.remove()` — no-op on the server
 - `.has()` — returns `false`
-- `.clear()` / `.size()` — no-op / returns 0
+- `.clear()` — no-op on the server
+- `.size()` — returns 0
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
