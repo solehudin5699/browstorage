@@ -28,7 +28,17 @@
     "prepare": "husky",
     "release": "release-it"
   },
-  "keywords": [],
+  "keywords": [
+    "browstorage",
+    "browser-storage",
+    "localStorage",
+    "sessionStorage",
+    "cookies",
+    "indexeddb",
+    "ttl",
+    "expiration",
+    "encryption"
+  ],
   "author": "solehudin5699",
   "license": "MIT",
   "repository": {
