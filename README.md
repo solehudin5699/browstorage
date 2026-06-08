@@ -96,6 +96,10 @@ When no TTL is set, each storage type behaves according to its inherent lifetime
 | `IndexedDB` (ObjectStore) | Persistent until explicitly removed |
 | `IndexedDB` (SecureStore) | Persistent until explicitly removed |
 
+### How it works
+
+TTL expiration is enforced by the library, not by the browser. Expired data is lazily checked and cleaned up on every `.get()` or `.has()` call. The raw data remains in storage until the library processes it — except for CookieStorage, where the browser enforces expiration via the `max-age` attribute.
+
 ## Encryption
 
 Data is encrypted using **AES-CBC** via [crypto-js](https://github.com/brix/crypto-js), with a SHA-256 checksum to detect wrong keys or corrupted data.
