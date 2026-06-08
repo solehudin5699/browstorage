@@ -2,6 +2,38 @@
 
 browstorage — browser storage library for localStorage, sessionStorage, cookies, and IndexedDB with **TTL (expiration)** and **encryption** support.
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [TTL (Time-To-Live)](#ttl-time-to-live)
+  - [Default Behavior](#default-behavior)
+  - [How it works](#how-it-works)
+- [Encryption](#encryption)
+- [LocalStorage / SessionStorage](#localstorage--sessionstorage)
+  - [API Reference](#api-reference)
+  - [Usage Pattern](#usage-pattern)
+- [CookieStorage](#cookiestorage)
+  - [API Reference](#api-reference-1)
+  - [Cookie options](#cookie-options)
+  - [Usage Pattern](#usage-pattern-1)
+- [IndexedDB](#indexeddb)
+  - [Schema Definition](#schema-definition)
+  - [Key Path](#key-path)
+  - [ObjectStore CRUD](#objectstore-crud)
+  - [Secondary Indexes](#secondary-indexes)
+  - [Usage Pattern: Centralized Definitions](#usage-pattern-centralized-definitions)
+  - [SecureStore & SecureKey](#securestore--securekey)
+  - [Usage Pattern: Centralized Definitions](#usage-pattern-centralized-definitions-1)
+  - [Migration System](#migration-system)
+  - [`const` Type Parameter (TS 5.0+)](#const-type-parameter-ts-50)
+  - [`close()` & dbName Uniqueness](#close--dbname-uniqueness)
+  - [Best Practices](#best-practices)
+- [SSR Safety](#ssr-safety)
+- [Options Hierarchy](#options-hierarchy)
+- [TypeScript](#typescript)
+- [License](#license)
+
 ## Installation
 
 ```bash
