@@ -56,7 +56,7 @@ local.clear()     // localStorage.clear()
 local.size()      // estimated total bytes
 ```
 
-For detailed documentation, see the [documentation](https://github.com/solehudin5699/browstorage/blob/main/docs/index.md).
+For detailed documentation, see the 👉 [DOCUMENTATION](https://github.com/solehudin5699/browstorage/blob/main/docs/index.md).
 
 ## TTL (Time-To-Live)
 
@@ -97,6 +97,8 @@ When no TTL is set, each storage type behaves according to its inherent lifetime
 | `IndexedDB` (SecureStore) | Persistent until explicitly removed |
 
 ## Encryption
+
+Data is encrypted using **AES-CBC** via crypto-js, with a SHA-256 checksum to detect wrong keys or corrupted data.
 
 ```ts
 const local = new LocalStorage({
