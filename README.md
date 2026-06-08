@@ -56,7 +56,7 @@ local.clear()     // localStorage.clear()
 local.size()      // estimated total bytes
 ```
 
-For detailed documentation, see the 👉 [DOCUMENTATION](https://github.com/solehudin5699/browstorage/blob/main/docs/index.md).
+For detailed documentation, see the 👉 [DOCUMENTATION](https://github.com/solehudin5699/browstorage/blob/master/docs/index.md).
 
 ## TTL (Time-To-Live)
 
