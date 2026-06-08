@@ -44,7 +44,7 @@ const db = new IndexedDB({
   secureStores: [{ name: 'sessions', encryptionKey: 'secret', ttl: '24h' }],
 })
 const users = db.objectStore<User>('users')
-await users.add({ name: 'John Done' })
+await users.add({ name: 'John Doe' })
 const all = await users.getAll()
 
 const sessions = db.secureStore('sessions')
@@ -96,7 +96,7 @@ When no TTL is set, each storage type behaves according to its inherent lifetime
 
 ## Encryption
 
-Data is encrypted using **AES-CBC** via crypto-js, with a SHA-256 checksum to detect wrong keys or corrupted data.
+Data is encrypted using **AES-CBC** via [crypto-js](https://github.com/brix/crypto-js), with a SHA-256 checksum to detect wrong keys or corrupted data.
 
 ```ts
 const local = new LocalStorage({
