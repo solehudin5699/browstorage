@@ -1,6 +1,6 @@
 {
   "name": "browstorage",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Browser storage library for localStorage, sessionStorage, cookies, and IndexedDB — with TTL (expiration) and encryption support",
   "type": "module",
   "sideEffects": false,
