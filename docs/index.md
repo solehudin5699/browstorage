@@ -10,6 +10,7 @@ browstorage — browser storage library for localStorage, sessionStorage, cookie
   - [Default Behavior](#default-behavior)
   - [How it works](#how-it-works)
 - [Encryption](#encryption)
+- [Security Note](#security-note)
 - [LocalStorage / SessionStorage](#localstorage--sessionstorage)
   - [Instance Config](#instance-config)
   - [API Reference](#api-reference)
@@ -154,6 +155,16 @@ const token = local.key<string>('token', { encrypt: false })   // no encryption
 ```
 
 **Note:** `encrypt: true` without `encryptionKey` will log a warning and automatically disable encryption. It will **not** throw an error. This applies to all storage types (local, session, cookie, SecureStore).
+
+## Security Note
+
+Client-side encryption **obfuscates** stored data but does **not** make
+it secret from the end user — the encryption key and decrypted data can
+still be exposed via browser DevTools or memory inspection.
+
+Treat it as **defense in depth** against passive threats (browser extensions,
+physical device access), not a protection against targeted attacks.
+For truly sensitive data, use HttpOnly cookies or in-memory storage instead.
 
 ## LocalStorage / SessionStorage
 
