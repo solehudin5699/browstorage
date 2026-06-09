@@ -11,11 +11,12 @@ browstorage — browser storage library for localStorage, sessionStorage, cookie
   - [How it works](#how-it-works)
 - [Encryption](#encryption)
 - [LocalStorage / SessionStorage](#localstorage--sessionstorage)
+  - [Instance Config](#instance-config)
   - [API Reference](#api-reference)
   - [Usage Pattern](#usage-pattern)
 - [CookieStorage](#cookiestorage)
+  - [Instance Config](#instance-config-1)
   - [API Reference](#api-reference-1)
-  - [Cookie options](#cookie-options)
   - [Usage Pattern](#usage-pattern-1)
 - [IndexedDB](#indexeddb)
   - [Schema Definition](#schema-definition)
@@ -156,6 +157,42 @@ const token = local.key<string>('token', { encrypt: false })   // no encryption
 
 ## LocalStorage / SessionStorage
 
+LocalStorage and SessionStorage are synchronous key-value stores backed by the browser's `localStorage` and `sessionStorage` APIs. Values are serialized via JSON.
+
+### Instance Config
+
+#### StorageConfig
+
+```ts
+interface StorageConfig {
+  encrypt?: boolean
+  encryptionKey?: string
+  ttl?: TTL
+}
+```
+
+| Property | Type | Default | Description |
+|---------|------|---------|-------------|
+| `encrypt` | `boolean` | `false` | Enable AES-CBC encryption |
+| `encryptionKey` | `string` | — | Encryption key. Required if `encrypt: true`. If empty, a warning is logged and encryption is disabled. |
+| `ttl` | `TTL` | — | Default TTL for all keys. Without TTL, data persists according to storage type defaults. Use `null` to override to no TTL. |
+
+#### StorageKeyOptions
+
+```ts
+interface StorageKeyOptions {
+  encrypt?: boolean
+  ttl?: TTL
+}
+```
+
+| Property | Type | Default | Description |
+|---------|------|---------|-------------|
+| `encrypt` | `boolean` | — | Override encryption for this key |
+| `ttl` | `TTL` | — | Override TTL for this key. `null` to disable TTL. |
+
+**Note:** `encryptionKey` is only available at the factory level, not at `.key()` or `.set()` level.
+
 ### API Reference
 
 #### `LocalStorage`
@@ -268,6 +305,57 @@ export function getToken(): string | undefined {
 
 ## CookieStorage
 
+CookieStorage is a synchronous key-value store backed by `document.cookie`. Cookies are sent with every HTTP request to the domain, making them ideal for session tokens and preferences. Each cookie is limited to 4096 bytes.
+
+### Instance Config
+
+#### CookieConfig
+
+```ts
+interface CookieConfig extends StorageConfig {
+  domain?: string
+  path?: string
+  secure?: boolean
+  sameSite?: 'strict' | 'lax' | 'none'
+  httpOnly?: boolean
+}
+```
+
+| Property | Type | Default | Description |
+|---------|------|---------|-------------|
+| `encrypt` | `boolean` | `false` | Enable AES-CBC encryption |
+| `encryptionKey` | `string` | — | Encryption key. Required if `encrypt: true`. |
+| `ttl` | `TTL` | — | Default TTL for all keys. Without TTL, the cookie is a session cookie. |
+| `path` | `string` | `'/'` | Cookie path |
+| `domain` | `string` | — | Cookie domain |
+| `secure` | `boolean` | `false` | Send only via HTTPS |
+| `sameSite` | `'strict' \| 'lax' \| 'none'` | `'lax'` | SameSite policy |
+| `httpOnly` | `boolean` | `false` | Not accessible via JS (`document.cookie`) |
+
+#### CookieKeyOptions
+
+```ts
+interface CookieKeyOptions extends StorageKeyOptions {
+  domain?: string
+  path?: string
+  secure?: boolean
+  sameSite?: 'strict' | 'lax' | 'none'
+  httpOnly?: boolean
+}
+```
+
+| Property | Type | Default | Description |
+|---------|------|---------|-------------|
+| `encrypt` | `boolean` | — | Override encryption for this key |
+| `ttl` | `TTL` | — | Override TTL. `null` to disable TTL. |
+| `path` | `string` | `'/'` | Cookie path |
+| `domain` | `string` | — | Cookie domain |
+| `secure` | `boolean` | `false` | Send only via HTTPS |
+| `sameSite` | `'strict' \| 'lax' \| 'none'` | `'lax'` | SameSite policy |
+| `httpOnly` | `boolean` | `false` | Not accessible via JS |
+
+**Note:** `encryptionKey` is only available at the factory level. Cookie options at `.key()` level override factory defaults.
+
 ### API Reference
 
 #### `CookieStorage`
@@ -285,17 +373,6 @@ export function getToken(): string | undefined {
 | `get()` | Get cookie value |
 | `remove(options?)` | Delete cookie |
 | `has()` | Check if cookie exists |
-
-### Cookie options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `ttl` | `TTL` | — | Cookie expiration |
-| `path` | `string` | `'/'` | Cookie path |
-| `domain` | `string` | — | Cookie domain |
-| `secure` | `boolean` | `false` | Send only via HTTPS |
-| `sameSite` | `'strict' \| 'lax' \| 'none'` | `'lax'` | SameSite policy |
-| `httpOnly` | `boolean` | `false` | Not accessible via JS |
 
 ### Usage Pattern
 
