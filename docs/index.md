@@ -158,7 +158,7 @@ const token = local.key<string>('token', { encrypt: false })   // no encryption
 
 ## Security Note
 
-Client-side encryption **obfuscates** stored data but does **not** make
+Client-side encryption **in this library** obfuscates stored data but does **not** make
 it secret from the end user — the encryption key and decrypted data can
 still be exposed via browser DevTools or memory inspection.
 
